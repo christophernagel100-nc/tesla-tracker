@@ -45,10 +45,10 @@ export default function VinDetailModal({ listing, avgPrice, onClose }: Props) {
     { label: 'Erstzulassung', value: formatRegistration(listing.registration_month, listing.registration_year) },
     { label: 'Kilometerstand', value: formatKm(listing.odometer_km) },
     { label: 'Standort', value: listing.location || '–' },
-    { label: 'Anhängerkupplung', value: listing.has_towbar ? 'Ja' : 'Nein' },
-    { label: 'Schadenhistorie', value: listing.has_damage_history ? 'Ja ⚠️' : 'Nein' },
+    { label: 'Anhängerkupplung', value: listing.has_towbar ? 'Ja' : '–' },
+    { label: 'Repariert', value: listing.has_damage_history ? 'Ja ⚠' : '–' },
     { label: 'Erstmals gesehen', value: formatDate(listing.first_seen) },
-    { label: 'Online seit', value: `${listing.days_on_market} Tage` },
+    { label: 'Online seit', value: listing.days_on_market === 0 ? 'Neu' : `${listing.days_on_market} Tage` },
   ]
 
   return (

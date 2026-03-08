@@ -1,14 +1,14 @@
 import { Suspense } from 'react'
-import { getCurrentListings, getDashboardStats, getPriceHistory, getRecentPriceChanges } from '@/lib/queries'
+import { getCurrentListings, getDashboardStats, getAllVinPriceHistory, getRecentPriceChanges } from '@/lib/queries'
 import DashboardContent from './DashboardContent'
 
 export const revalidate = 0
 
 export default async function DashboardPage() {
-  const [listings, stats, priceHistory, recentChanges] = await Promise.all([
+  const [listings, stats, vinPriceHistory, recentChanges] = await Promise.all([
     getCurrentListings(),
     getDashboardStats(),
-    getPriceHistory(),
+    getAllVinPriceHistory(),
     getRecentPriceChanges(),
   ])
 
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
       <DashboardContent
         listings={listings}
         stats={stats}
-        priceHistory={priceHistory}
+        vinPriceHistory={vinPriceHistory}
         recentChanges={recentChanges}
       />
     </Suspense>

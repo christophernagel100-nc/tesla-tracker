@@ -47,27 +47,62 @@ export async function getRecentPriceChanges(): Promise<TeslaPriceChange[]> {
   return (data || []) as TeslaPriceChange[]
 }
 
-export async function getPriceHistory(): Promise<{ date: string; avg: number; min: number }[]> {
+const VIN_COLORS = [
+  '#d5bca2', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6',
+  '#06b6d4', '#f97316', '#ef4444', '#84cc16', '#ec4899',
+]
+
+export interface VinMeta { suffix: string; location: string; color: string }
+
+export async function getAllVinPriceHistory(): Promise<{
+  chartData: Record<string, number | string>[]
+  vinMeta: VinMeta[]
+}> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tesla_snapshots')
-    .select('fetched_at, price')
+    .select('vin, fetched_at, price, location')
     .order('fetched_at', { ascending: true })
     .gte('fetched_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-  if (error || !data) return []
+  if (error || !data || data.length === 0) return { chartData: [], vinMeta: [] }
 
-  const byDay = new Map<string, number[]>()
+  // Collect unique VINs with their location
+  const vinLocationMap = new Map<string, string>()
   for (const row of data) {
-    const day = row.fetched_at.substring(0, 10)
-    if (!byDay.has(day)) byDay.set(day, [])
-    byDay.get(day)!.push(row.price as number)
+    if (!vinLocationMap.has(row.vin as string)) {
+      vinLocationMap.set(row.vin as string, (row.location as string) || '–')
+    }
   }
 
-  return Array.from(byDay.entries()).map(([date, prices]) => ({
-    date,
-    avg: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
-    min: Math.min(...prices),
+  const vins = Array.from(vinLocationMap.keys())
+  const vinMeta: VinMeta[] = vins.map((vin, i) => ({
+    suffix: `…${vin.slice(-4)}`,
+    location: vinLocationMap.get(vin)!,
+    color: VIN_COLORS[i % VIN_COLORS.length],
   }))
+
+  // Group by day + vin: take last price of the day per VIN
+  const dayVinMap = new Map<string, Map<string, number>>()
+  for (const row of data) {
+    const day = (row.fetched_at as string).substring(0, 10)
+    if (!dayVinMap.has(day)) dayVinMap.set(day, new Map())
+    dayVinMap.get(day)!.set(row.vin as string, row.price as number)
+  }
+
+  // Build chart data: [{date:"08.03", "…4305":31000, "…0581":36300, ...}]
+  const { format } = await import('date-fns')
+  const chartData = Array.from(dayVinMap.entries()).map(([day, vinPrices]) => {
+    const point: Record<string, number | string> = {
+      date: format(new Date(day), 'dd.MM'),
+    }
+    for (const meta of vinMeta) {
+      const vin = vins[vinMeta.indexOf(meta)]
+      if (vinPrices.has(vin)) point[meta.suffix] = vinPrices.get(vin)!
+    }
+    return point
+  })
+
+  return { chartData, vinMeta }
 }
 
 export async function getVinHistory(vin: string) {

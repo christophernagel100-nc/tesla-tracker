@@ -11,9 +11,9 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   const reasons: string[] = []
   let score = 0
 
-  // Schaden: Ausschlusskriterium
+  // Repariert: Ausschlusskriterium
   if (listing.has_damage_history) {
-    return { score: 0, color: 'red', label: 'Schaden', reasons: ['Schadenhistorie vorhanden'] }
+    return { score: 0, color: 'red', label: 'Repariert', reasons: ['Unfall in der Vergangenheit'] }
   }
 
   // Preis vs. Durchschnitt

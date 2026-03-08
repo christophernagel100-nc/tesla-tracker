@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { TeslaCurrentListing, TeslaPriceChange, DashboardStats } from '@/lib/types'
+import type { VinMeta } from '@/lib/queries'
 import { getDaysUntil } from '@/lib/utils'
 import KpiCards from './components/KpiCards'
 import CountdownBanner from './components/CountdownBanner'
@@ -12,11 +13,11 @@ import VinDetailModal from './components/VinDetailModal'
 interface Props {
   listings: TeslaCurrentListing[]
   stats: DashboardStats
-  priceHistory: { date: string; avg: number; min: number }[]
+  vinPriceHistory: { chartData: Record<string, number | string>[]; vinMeta: VinMeta[] }
   recentChanges: TeslaPriceChange[]
 }
 
-export default function DashboardContent({ listings, stats, priceHistory, recentChanges }: Props) {
+export default function DashboardContent({ listings, stats, vinPriceHistory, recentChanges }: Props) {
   const [selectedVin, setSelectedVin] = useState<string | null>(null)
   const selectedListing = listings.find(l => l.vin === selectedVin) || null
 
@@ -52,7 +53,7 @@ export default function DashboardContent({ listings, stats, priceHistory, recent
         <KpiCards stats={stats} />
 
         {/* Price History Chart */}
-        <PriceHistoryChart data={priceHistory} />
+        <PriceHistoryChart chartData={vinPriceHistory.chartData} vinMeta={vinPriceHistory.vinMeta} />
 
         {/* Listings Table */}
         <ListingsTable

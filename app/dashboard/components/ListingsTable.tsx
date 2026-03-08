@@ -67,7 +67,7 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
               <SortHeader k="odometer_km">km-Stand</SortHeader>
               <SortHeader k="price">Preis</SortHeader>
               <th className="text-left text-xs font-medium text-white/35 pb-3">AHK</th>
-              <th className="text-left text-xs font-medium text-white/35 pb-3">Schaden</th>
+              <th className="text-left text-xs font-medium text-white/35 pb-3">Repariert</th>
               <SortHeader k="days_on_market">Online</SortHeader>
               <th className="text-left text-xs font-medium text-white/35 pb-3">VIN</th>
             </tr>
@@ -90,10 +90,10 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
                   {listing.has_towbar ? <span className="text-emerald-400">✓</span> : <span className="text-white/20">–</span>}
                 </td>
                 <td className="py-3 pr-4 text-xs">
-                  {listing.has_damage_history ? <span className="text-red-400">!</span> : <span className="text-white/20">–</span>}
+                  {listing.has_damage_history ? <span className="text-amber-400">⚠</span> : <span className="text-white/20">–</span>}
                 </td>
                 <td className="py-3 pr-4 text-sm text-white/40 tabular-nums">
-                  {listing.days_on_market}d
+                  {listing.days_on_market === 0 ? '?' : `${listing.days_on_market}d`}
                 </td>
                 <td className="py-3 text-xs text-white/25 font-mono">{listing.vin.slice(-6)}</td>
               </tr>
