@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 import { buildMarketContext } from '@/lib/ai-context'
 
-export const revalidate = 1800 // 30 Minuten Cache in Production
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
