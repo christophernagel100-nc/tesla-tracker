@@ -16,6 +16,25 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
     return { score: 0, color: 'red', label: 'Repariert', reasons: ['Unfall in der Vergangenheit'] }
   }
 
+  // Hardware-Generation: Ultraschallsensoren (bis 09/2022) oder Garantiefahrzeug (2024+, <40k km)
+  const regYear = listing.registration_year
+  const regMonth = listing.registration_month
+  const km = listing.odometer_km || 0
+
+  if (regYear !== null) {
+    const hasUltrasonic =
+      regYear < 2022 || (regYear === 2022 && regMonth !== null && regMonth <= 9)
+    const hasWarranty = regYear >= 2024 && km < 40000
+
+    if (hasUltrasonic) {
+      score += 3
+      reasons.push('Ultraschallsensoren (≤ 09/2022)')
+    } else if (hasWarranty) {
+      score += 3
+      reasons.push('Garantiefahrzeug (2024+)')
+    }
+  }
+
   // Preis vs. Durchschnitt
   if (avgPrice > 0) {
     const priceDiff = (listing.price - avgPrice) / avgPrice
@@ -24,17 +43,9 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   }
 
   // Kilometerstand
-  const km = listing.odometer_km || 0
   if (km < 20000) { score += 3; reasons.push('Unter 20.000 km') }
-  else if (km < 30000) { score += 2; reasons.push('Unter 30.000 km') }
-
-  // Alter
-  const year = listing.registration_year
-  if (year) {
-    const age = new Date().getFullYear() - year
-    if (age < 2) { score += 2; reasons.push('Unter 2 Jahre alt') }
-    else if (age < 3) { score += 1; reasons.push('Unter 3 Jahre alt') }
-  }
+  else if (km < 40000) { score += 2; reasons.push('Unter 40.000 km') }
+  else if (km < 70000) { score += 1; reasons.push('Unter 70.000 km') }
 
   // Anhängerkupplung
   if (listing.has_towbar) { score += 1; reasons.push('Mit Anhängerkupplung') }
