@@ -1,6 +1,10 @@
 'use client'
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useState } from 'react'
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import { formatPrice } from '@/lib/utils'
 import type { VinMeta } from '@/lib/queries'
 
@@ -11,21 +15,38 @@ interface Props {
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean
-  payload?: { value: number; name: string; color: string }[]
+  payload?: { value: number; name: string; color: string; dataKey: string }[]
   label?: string
 }) {
   if (!active || !payload?.length) return null
-  const sorted = [...payload].filter(p => p.value !== undefined).sort((a, b) => a.value - b.value)
+  const sorted = [...payload]
+    .filter(p => p.value !== undefined && p.value !== null)
+    .sort((a, b) => a.value - b.value)
+
   return (
-    <div className="bg-black/90 border border-white/10 rounded-xl p-3 text-sm min-w-[180px]">
-      <div className="text-white/50 mb-2 text-xs">{label}</div>
+    <div
+      style={{
+        background: 'rgba(10,10,18,0.92)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '14px',
+        padding: '12px 16px',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        minWidth: '200px',
+      }}
+    >
+      <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginBottom: '10px', letterSpacing: '0.05em' }}>
+        {label}
+      </div>
       {sorted.map((p) => (
-        <div key={p.name} className="flex justify-between gap-4 py-0.5">
-          <span className="text-white/60 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
+        <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '20px' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'rgba(255,255,255,0.55)', fontSize: '12px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.color, flexShrink: 0, boxShadow: `0 0 6px ${p.color}` }} />
             {p.name}
           </span>
-          <span className="text-white/90 font-medium tabular-nums">{formatPrice(p.value)}</span>
+          <span style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13px', fontWeight: 500, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+            {formatPrice(p.value)}
+          </span>
         </div>
       ))}
     </div>
@@ -33,6 +54,9 @@ function CustomTooltip({ active, payload, label }: {
 }
 
 export default function PriceHistoryChart({ chartData, vinMeta }: Props) {
+  const [hoveredVin, setHoveredVin] = useState<string | null>(null)
+  const [hiddenVins, setHiddenVins] = useState<Set<string>>(new Set())
+
   if (chartData.length === 0 || vinMeta.length === 0) {
     return (
       <div className="card p-6">
@@ -44,49 +68,142 @@ export default function PriceHistoryChart({ chartData, vinMeta }: Props) {
     )
   }
 
+  const toggle = (suffix: string) => {
+    setHiddenVins(prev => {
+      const next = new Set(prev)
+      next.has(suffix) ? next.delete(suffix) : next.add(suffix)
+      return next
+    })
+  }
+
+  const allPrices = chartData.flatMap(d =>
+    vinMeta.map(m => d[m.suffix] as number).filter(Boolean)
+  )
+  const minPrice = Math.min(...allPrices)
+  const maxPrice = Math.max(...allPrices)
+  const padding = (maxPrice - minPrice) * 0.25 || 2000
+  const yMin = Math.floor((minPrice - padding) / 1000) * 1000
+  const yMax = Math.ceil((maxPrice + padding) / 1000) * 1000
+
   return (
     <div className="card p-6">
-      <h2 className="text-sm font-medium text-white/50 mb-6">Preisverlauf alle Fahrzeuge</h2>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>
+            Preisverlauf
+          </h2>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+            {vinMeta.length} Fahrzeuge · {chartData.length} Tage
+          </p>
+        </div>
+        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
+          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', fontWeight: 500 }}>
+            {formatPrice(minPrice)} – {formatPrice(maxPrice)}
+          </div>
+          <div style={{ marginTop: '1px' }}>Spanne</div>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={220}>
+        <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <defs>
+            {vinMeta.map((meta) => {
+              const id = `grad-${meta.suffix.replace('…', '')}`
+              return (
+                <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={meta.color} stopOpacity={0.12} />
+                  <stop offset="100%" stopColor={meta.color} stopOpacity={0} />
+                </linearGradient>
+              )
+            })}
+          </defs>
           <XAxis
             dataKey="date"
-            tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+            tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
             axisLine={false}
             tickLine={false}
+            dy={8}
           />
           <YAxis
             tickFormatter={(v) => `${Math.round(v / 1000)}k`}
-            tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+            tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
             axisLine={false}
             tickLine={false}
-            domain={['auto', 'auto']}
+            domain={[yMin, yMax]}
+            width={32}
           />
-          <Tooltip content={<CustomTooltip />} />
-          {vinMeta.map((meta) => (
-            <Line
-              key={meta.suffix}
-              type="monotone"
-              dataKey={meta.suffix}
-              stroke={meta.color}
-              strokeWidth={2}
-              dot={false}
-              connectNulls
-              name={`${meta.location} (${meta.suffix})`}
-            />
-          ))}
-        </LineChart>
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }}
+          />
+
+          {vinMeta.map((meta) => {
+            const isHidden = hiddenVins.has(meta.suffix)
+            const isActive = hoveredVin === null || hoveredVin === meta.suffix
+            const opacity = isHidden ? 0 : isActive ? 1 : 0.2
+            const gradId = `grad-${meta.suffix.replace('…', '')}`
+
+            return (
+              <Area
+                key={meta.suffix}
+                type="monotoneX"
+                dataKey={meta.suffix}
+                stroke={meta.color}
+                strokeWidth={isActive && !isHidden ? 1.75 : 1}
+                strokeOpacity={opacity}
+                fill={`url(#${gradId})`}
+                fillOpacity={opacity}
+                dot={false}
+                activeDot={{
+                  r: 4,
+                  fill: meta.color,
+                  stroke: 'rgba(0,0,0,0.8)',
+                  strokeWidth: 2,
+                  style: { filter: `drop-shadow(0 0 6px ${meta.color})` },
+                }}
+                connectNulls
+                name={`${meta.location} (${meta.suffix})`}
+              />
+            )
+          })}
+        </AreaChart>
       </ResponsiveContainer>
 
       {/* Legende */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4">
-        {vinMeta.map((meta) => (
-          <span key={meta.suffix} className="flex items-center gap-1.5 text-xs text-white/40">
-            <span className="w-3 h-0.5 inline-block" style={{ background: meta.color }} />
-            {meta.location} ({meta.suffix})
-          </span>
-        ))}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        {vinMeta.map((meta) => {
+          const isHidden = hiddenVins.has(meta.suffix)
+          return (
+            <button
+              key={meta.suffix}
+              onClick={() => toggle(meta.suffix)}
+              onMouseEnter={() => setHoveredVin(meta.suffix)}
+              onMouseLeave={() => setHoveredVin(null)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                fontSize: '12px',
+                color: isHidden ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px 0',
+                transition: 'color 0.15s',
+              }}
+            >
+              <span style={{
+                width: '20px',
+                height: '2px',
+                borderRadius: '1px',
+                background: isHidden ? 'rgba(255,255,255,0.15)' : meta.color,
+                transition: 'background 0.15s',
+              }} />
+              <span>{meta.location}</span>
+              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{meta.suffix}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
