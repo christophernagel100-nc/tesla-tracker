@@ -1,12 +1,58 @@
-import { getCurrentListings, getDashboardStats, getRecentPriceChanges } from './queries'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { calcBuyScore } from './scoring'
 import { formatPrice, formatKm, formatRegistration } from './utils'
+import type { TeslaCurrentListing, TeslaPriceChange, DashboardStats } from './types'
+
+// Direkter Supabase-Client ohne Cookie-Abhängigkeit (für API Routes)
+function getClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+async function getListings(): Promise<TeslaCurrentListing[]> {
+  const { data, error } = await getClient()
+    .from('tesla_current_listings')
+    .select('*')
+    .order('price', { ascending: true })
+  if (error) return []
+  return (data || []) as TeslaCurrentListing[]
+}
+
+async function getStats(): Promise<DashboardStats> {
+  const supabase = getClient()
+  const [listingsRes, dropsRes] = await Promise.all([
+    supabase.from('tesla_current_listings').select('price'),
+    supabase
+      .from('tesla_price_changes')
+      .select('delta')
+      .lt('delta', 0)
+      .gte('changed_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+  ])
+  const prices = (listingsRes.data || []).map(l => l.price as number).filter(Boolean)
+  return {
+    activeListings: prices.length,
+    avgPrice: prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0,
+    lowestPrice: prices.length ? Math.min(...prices) : 0,
+    priceDrops24h: (dropsRes.data || []).length,
+  }
+}
+
+async function getRecentDrops(): Promise<TeslaPriceChange[]> {
+  const { data } = await getClient()
+    .from('tesla_price_changes')
+    .select('*')
+    .order('changed_at', { ascending: false })
+    .limit(20)
+  return (data || []) as TeslaPriceChange[]
+}
 
 export async function buildMarketContext(): Promise<string> {
   const [listings, stats, recentChanges] = await Promise.all([
-    getCurrentListings(),
-    getDashboardStats(),
-    getRecentPriceChanges(),
+    getListings(),
+    getStats(),
+    getRecentDrops(),
   ])
 
   const KAUFZIEL = new Date('2026-03-25')
