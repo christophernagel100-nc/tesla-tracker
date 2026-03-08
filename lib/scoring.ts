@@ -11,11 +11,6 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   const reasons: string[] = []
   let score = 0
 
-  // Repariert: Ausschlusskriterium
-  if (listing.has_damage_history) {
-    return { score: 0, color: 'red', label: 'Repariert', reasons: ['Unfall in der Vergangenheit'] }
-  }
-
   // Hardware-Generation: Ultraschallsensoren (bis 09/2022) oder Garantiefahrzeug (2024+, <40k km)
   const regYear = listing.registration_year
   const regMonth = listing.registration_month
