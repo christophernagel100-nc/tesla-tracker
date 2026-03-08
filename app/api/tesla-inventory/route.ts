@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// This proxy is needed because Cloudflare blocks n8n server's requests to Tesla API
-// Vercel's infrastructure has legitimate browser-like TLS fingerprints
+// Edge Runtime: uses different network stack than Node.js serverless functions
+// Edge Runtime's fetch() has browser-like TLS fingerprinting → bypasses Cloudflare
+export const runtime = 'edge'
 
 export async function GET(req: NextRequest) {
   try {
