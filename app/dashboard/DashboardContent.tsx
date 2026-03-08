@@ -9,6 +9,8 @@ import CountdownBanner from './components/CountdownBanner'
 import PriceHistoryChart from './components/PriceHistoryChart'
 import ListingsTable from './components/ListingsTable'
 import VinDetailModal from './components/VinDetailModal'
+import MarketBriefing from './components/MarketBriefing'
+import AiAdvisor from './components/AiAdvisor'
 
 interface Props {
   listings: TeslaCurrentListing[]
@@ -52,6 +54,9 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
         {/* KPI Cards */}
         <KpiCards stats={stats} />
 
+        {/* KI Marktanalyse */}
+        <MarketBriefing />
+
         {/* Price History Chart */}
         <PriceHistoryChart chartData={vinPriceHistory.chartData} vinMeta={vinPriceHistory.vinMeta} />
 
@@ -71,6 +76,9 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
           onClose={() => setSelectedVin(null)}
         />
       )}
+
+      {/* KI-Kaufberater Chat */}
+      <AiAdvisor />
     </div>
   )
 }
