@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceDot,
 } from 'recharts'
 import { formatPrice } from '@/lib/utils'
 import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
@@ -15,6 +15,20 @@ interface Props {
   vinMeta: VinMeta[]
   recentChanges?: PriceChangeWithLocation[]
 }
+
+// Stroke-Dash-Patterns für bessere visuelle Unterscheidung
+const DASH_PATTERNS = [
+  '0',           // solid
+  '8 4',         // dashed
+  '2 3',         // dotted
+  '12 4 2 4',    // dash-dot
+  '0',           // solid
+  '6 3',         // short dash
+  '2 2',         // fine dot
+  '10 3 3 3',    // dash-dot-dot
+  '0',           // solid
+  '4 4',         // even dash
+]
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean
@@ -60,6 +74,18 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
   const [hoveredVin, setHoveredVin] = useState<string | null>(null)
   const [hiddenVins, setHiddenVins] = useState<Set<string>>(new Set())
 
+  // Preisänderungs-Dots für den Chart berechnen
+  const changeDots = useMemo(() => {
+    if (!recentChanges.length || !chartData.length) return []
+    return recentChanges.map(change => {
+      const dateStr = format(new Date(change.changed_at), 'dd.MM')
+      const vinSuffix = `…${change.vin.slice(-4)}`
+      const dataPoint = chartData.find(d => d.date === dateStr)
+      if (!dataPoint || !dataPoint[vinSuffix]) return null
+      return { date: dateStr, suffix: vinSuffix, price: dataPoint[vinSuffix] as number, delta: change.delta }
+    }).filter(Boolean) as { date: string; suffix: string; price: number; delta: number }[]
+  }, [recentChanges, chartData])
+
   if (chartData.length === 0 || vinMeta.length === 0) {
     return (
       <div className="card p-6">
@@ -84,7 +110,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
   )
   const minPrice = Math.min(...allPrices)
   const maxPrice = Math.max(...allPrices)
-  const padding = (maxPrice - minPrice) * 0.25 || 2000
+  const padding = (maxPrice - minPrice) * 0.15 || 2000
   const yMin = Math.floor((minPrice - padding) / 1000) * 1000
   const yMax = Math.ceil((maxPrice + padding) / 1000) * 1000
 
@@ -107,19 +133,8 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-          <defs>
-            {vinMeta.map((meta) => {
-              const id = `grad-${meta.suffix.replace('…', '')}`
-              return (
-                <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={meta.color} stopOpacity={0.12} />
-                  <stop offset="100%" stopColor={meta.color} stopOpacity={0} />
-                </linearGradient>
-              )
-            })}
-          </defs>
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <XAxis
             dataKey="date"
             tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
@@ -128,54 +143,79 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
             dy={8}
           />
           <YAxis
-            tickFormatter={(v) => `${Math.round(v / 1000)}k`}
+            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
             tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
             axisLine={false}
             tickLine={false}
             domain={[yMin, yMax]}
-            width={32}
+            width={36}
           />
           <Tooltip
             content={<CustomTooltip />}
             cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }}
           />
 
-          {vinMeta.map((meta) => {
+          {vinMeta.map((meta, i) => {
             const isHidden = hiddenVins.has(meta.suffix)
-            const isActive = hoveredVin === null || hoveredVin === meta.suffix
-            const opacity = isHidden ? 0 : isActive ? 1 : 0.2
-            const gradId = `grad-${meta.suffix.replace('…', '')}`
+            const isHovered = hoveredVin === meta.suffix
+            const isActive = hoveredVin === null || isHovered
+            const opacity = isHidden ? 0 : isActive ? 1 : 0.12
 
             return (
-              <Area
+              <Line
                 key={meta.suffix}
                 type="monotoneX"
                 dataKey={meta.suffix}
                 stroke={meta.color}
-                strokeWidth={isActive && !isHidden ? 1.75 : 1}
+                strokeWidth={isHovered ? 3 : 2}
                 strokeOpacity={opacity}
-                fill={`url(#${gradId})`}
-                fillOpacity={opacity}
+                strokeDasharray={DASH_PATTERNS[i % DASH_PATTERNS.length]}
                 dot={false}
                 activeDot={{
-                  r: 4,
+                  r: isHovered ? 6 : 4,
                   fill: meta.color,
                   stroke: 'rgba(0,0,0,0.8)',
                   strokeWidth: 2,
-                  style: { filter: `drop-shadow(0 0 6px ${meta.color})` },
+                  style: { filter: `drop-shadow(0 0 8px ${meta.color})` },
                 }}
                 connectNulls
                 name={`${meta.location} (${meta.suffix})`}
               />
             )
           })}
-        </AreaChart>
+
+          {/* Preisänderungs-Marker im Chart */}
+          {changeDots.map((dot, i) => {
+            const meta = vinMeta.find(m => m.suffix === dot.suffix)
+            if (!meta || hiddenVins.has(dot.suffix)) return null
+            return (
+              <ReferenceDot
+                key={`change-${i}`}
+                x={dot.date}
+                y={dot.price}
+                r={5}
+                fill={dot.delta < 0 ? '#10b981' : '#ef4444'}
+                stroke="rgba(0,0,0,0.6)"
+                strokeWidth={2}
+              />
+            )
+          })}
+        </LineChart>
       </ResponsiveContainer>
 
-      {/* Legende */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {vinMeta.map((meta) => {
+      {/* Legende — aktueller Preis rechts angezeigt */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        {vinMeta.map((meta, i) => {
           const isHidden = hiddenVins.has(meta.suffix)
+          const isHovered = hoveredVin === meta.suffix
+          // Aktueller Preis = letzter Datenpunkt
+          const lastPoint = chartData[chartData.length - 1]
+          const currentPrice = lastPoint?.[meta.suffix] as number | undefined
+          // Vorheriger Preis = vorletzter Datenpunkt
+          const prevPoint = chartData.length > 1 ? chartData[chartData.length - 2] : null
+          const prevPrice = prevPoint?.[meta.suffix] as number | undefined
+          const priceDelta = currentPrice && prevPrice ? currentPrice - prevPrice : 0
+
           return (
             <button
               key={meta.suffix}
@@ -185,31 +225,51 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '7px',
+                gap: '10px',
                 fontSize: '12px',
-                color: isHidden ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)',
-                background: 'none',
+                color: isHidden ? 'rgba(255,255,255,0.15)' : isHovered ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)',
+                background: isHovered ? 'rgba(255,255,255,0.03)' : 'none',
                 border: 'none',
                 cursor: 'pointer',
-                padding: '2px 0',
-                transition: 'color 0.15s',
+                padding: '6px 8px',
+                borderRadius: '8px',
+                transition: 'all 0.15s',
+                width: '100%',
+                textAlign: 'left',
               }}
             >
-              <span style={{
-                width: '20px',
-                height: '2px',
-                borderRadius: '1px',
-                background: isHidden ? 'rgba(255,255,255,0.15)' : meta.color,
-                transition: 'background 0.15s',
-              }} />
-              <span>{meta.location}</span>
+              {/* Farbige Linie mit Dash-Pattern */}
+              <svg width="24" height="2" style={{ flexShrink: 0 }}>
+                <line
+                  x1="0" y1="1" x2="24" y2="1"
+                  stroke={isHidden ? 'rgba(255,255,255,0.15)' : meta.color}
+                  strokeWidth="2"
+                  strokeDasharray={DASH_PATTERNS[i % DASH_PATTERNS.length] || '0'}
+                />
+              </svg>
+              <span style={{ minWidth: '140px' }}>{meta.location}</span>
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{meta.suffix}</span>
+              <span style={{ marginLeft: 'auto', fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: isHidden ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.7)' }}>
+                {currentPrice ? formatPrice(currentPrice) : '–'}
+              </span>
+              {priceDelta !== 0 && !isHidden && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: priceDelta < 0 ? '#10b981' : '#ef4444',
+                  fontVariantNumeric: 'tabular-nums',
+                  minWidth: '60px',
+                  textAlign: 'right',
+                }}>
+                  {priceDelta < 0 ? '' : '+'}{priceDelta.toLocaleString('de-DE')} €
+                </span>
+              )}
             </button>
           )
         })}
       </div>
 
-      {/* Preisänderungen */}
+      {/* Preisänderungen Detail-Liste */}
       {recentChanges.length > 0 && (
         <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginBottom: '10px', letterSpacing: '0.03em' }}>
@@ -236,7 +296,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                     fontSize: '13px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '0 0 auto' }}>
                     <span style={{ fontSize: '14px' }}>{isDown ? '📉' : '📈'}</span>
                     <div>
                       <span style={{ color: 'rgba(255,255,255,0.6)' }}>
