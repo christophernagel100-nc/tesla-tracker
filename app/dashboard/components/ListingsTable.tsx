@@ -51,13 +51,63 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
   }
 
   return (
-    <div className="card p-6">
-      <div className="flex items-center justify-between mb-5">
+    <div className="card p-4 sm:p-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-5">
         <h2 className="text-sm font-medium text-white/50">
           Aktuelle Angebote <span className="text-white/25 font-normal ml-1">({listings.length})</span>
         </h2>
+        {/* Mobile Sort-Dropdown */}
+        <div className="sm:hidden">
+          <select
+            value={`${sortKey}-${sortDir}`}
+            onChange={(e) => {
+              const [key, dir] = e.target.value.split('-') as [SortKey, SortDir]
+              setSortKey(key)
+              setSortDir(dir)
+            }}
+            className="text-xs bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-white/60 appearance-none"
+          >
+            <option value="price-asc">Preis ↑</option>
+            <option value="price-desc">Preis ↓</option>
+            <option value="score-desc">Score ↓</option>
+            <option value="odometer_km-asc">km ↑</option>
+            <option value="registration_year-desc">Neueste</option>
+            <option value="days_on_market-desc">Online ↓</option>
+          </select>
+        </div>
       </div>
-      <div className="overflow-x-auto">
+
+      {/* Mobile Cards */}
+      <div className="sm:hidden space-y-2">
+        {sorted.map((listing) => (
+          <div
+            key={listing.vin}
+            className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] active:bg-white/[0.04] transition-colors cursor-pointer"
+            onClick={() => onSelectVin(listing.vin)}
+          >
+            <div className="flex items-start justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <BuyScore result={listing.scoreResult} compact />
+                <span className="text-sm text-white/60">{listing.location || '–'}</span>
+              </div>
+              <span className="text-sm font-medium text-white/90 tabular-nums">{formatPrice(listing.price)}</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-white/40">
+              <span className="tabular-nums">{formatRegistration(listing.registration_month, listing.registration_year)}</span>
+              <span className="text-white/15">·</span>
+              <span className="tabular-nums">{formatKm(listing.odometer_km)}</span>
+              <span className="text-white/15">·</span>
+              {listing.has_towbar && <span className="text-emerald-400">AHK</span>}
+              {listing.has_damage_history && <span className="text-amber-400">⚠ Rep.</span>}
+              {!listing.has_towbar && !listing.has_damage_history && <span className="text-white/20">–</span>}
+              <span className="ml-auto tabular-nums">{listing.days_on_market === 0 ? '?' : `${listing.days_on_market}d`}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr>

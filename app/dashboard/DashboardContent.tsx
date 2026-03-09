@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { TeslaCurrentListing, TeslaPriceChange, DashboardStats } from '@/lib/types'
-import type { VinMeta } from '@/lib/queries'
+import type { TeslaCurrentListing, DashboardStats } from '@/lib/types'
+import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
 import { getDaysUntil } from '@/lib/utils'
 import KpiCards from './components/KpiCards'
 import CountdownBanner from './components/CountdownBanner'
@@ -16,7 +16,7 @@ interface Props {
   listings: TeslaCurrentListing[]
   stats: DashboardStats
   vinPriceHistory: { chartData: Record<string, number | string>[]; vinMeta: VinMeta[] }
-  recentChanges: TeslaPriceChange[]
+  recentChanges: PriceChangeWithLocation[]
 }
 
 export default function DashboardContent({ listings, stats, vinPriceHistory, recentChanges }: Props) {
@@ -58,7 +58,7 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
         <MarketBriefing />
 
         {/* Price History Chart */}
-        <PriceHistoryChart chartData={vinPriceHistory.chartData} vinMeta={vinPriceHistory.vinMeta} />
+        <PriceHistoryChart chartData={vinPriceHistory.chartData} vinMeta={vinPriceHistory.vinMeta} recentChanges={recentChanges} />
 
         {/* Listings Table */}
         <ListingsTable

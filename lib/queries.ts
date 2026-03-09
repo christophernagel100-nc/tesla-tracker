@@ -36,7 +36,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   }
 }
 
-export async function getRecentPriceChanges(): Promise<TeslaPriceChange[]> {
+export interface PriceChangeWithLocation extends TeslaPriceChange {
+  location: string | null
+}
+
+export async function getRecentPriceChanges(): Promise<PriceChangeWithLocation[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tesla_price_changes')
@@ -44,7 +48,29 @@ export async function getRecentPriceChanges(): Promise<TeslaPriceChange[]> {
     .order('changed_at', { ascending: false })
     .limit(20)
   if (error) return []
-  return (data || []) as TeslaPriceChange[]
+
+  const changes = (data || []) as TeslaPriceChange[]
+  if (changes.length === 0) return []
+
+  // Location aus Snapshots holen
+  const vins = [...new Set(changes.map(c => c.vin))]
+  const { data: snapData } = await supabase
+    .from('tesla_snapshots')
+    .select('vin, location')
+    .in('vin', vins)
+    .order('fetched_at', { ascending: false })
+
+  const locationMap = new Map<string, string>()
+  for (const s of (snapData || [])) {
+    if (!locationMap.has(s.vin as string)) {
+      locationMap.set(s.vin as string, (s.location as string) || '–')
+    }
+  }
+
+  return changes.map(c => ({
+    ...c,
+    location: locationMap.get(c.vin) || null,
+  }))
 }
 
 const VIN_COLORS = [

@@ -6,11 +6,14 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatPrice } from '@/lib/utils'
-import type { VinMeta } from '@/lib/queries'
+import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
+import { format } from 'date-fns'
+import { de } from 'date-fns/locale'
 
 interface Props {
   chartData: Record<string, number | string>[]
   vinMeta: VinMeta[]
+  recentChanges?: PriceChangeWithLocation[]
 }
 
 function CustomTooltip({ active, payload, label }: {
@@ -53,7 +56,7 @@ function CustomTooltip({ active, payload, label }: {
   )
 }
 
-export default function PriceHistoryChart({ chartData, vinMeta }: Props) {
+export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = [] }: Props) {
   const [hoveredVin, setHoveredVin] = useState<string | null>(null)
   const [hiddenVins, setHiddenVins] = useState<Set<string>>(new Set())
 
@@ -205,6 +208,73 @@ export default function PriceHistoryChart({ chartData, vinMeta }: Props) {
           )
         })}
       </div>
+
+      {/* Preisänderungen */}
+      {recentChanges.length > 0 && (
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginBottom: '10px', letterSpacing: '0.03em' }}>
+            Letzte Preisänderungen
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {recentChanges.slice(0, 8).map((change) => {
+              const isDown = change.delta < 0
+              const pct = ((change.delta / change.price_before) * 100).toFixed(1)
+              const vinSuffix = `…${change.vin.slice(-4)}`
+              const dateStr = format(new Date(change.changed_at), 'dd.MM. HH:mm', { locale: de })
+
+              return (
+                <div
+                  key={change.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    background: isDown ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
+                    border: `1px solid ${isDown ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}`,
+                    fontSize: '13px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '14px' }}>{isDown ? '📉' : '📈'}</span>
+                    <div>
+                      <span style={{ color: 'rgba(255,255,255,0.6)' }}>
+                        {change.location || '–'}
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '6px', fontSize: '11px' }}>
+                        {vinSuffix}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
+                      {formatPrice(change.price_before)}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>→</span>
+                    <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatPrice(change.price_after)}
+                    </span>
+                    <span style={{
+                      color: isDown ? '#10b981' : '#ef4444',
+                      fontWeight: 500,
+                      fontSize: '12px',
+                      fontVariantNumeric: 'tabular-nums',
+                      minWidth: '52px',
+                      textAlign: 'right',
+                    }}>
+                      {isDown ? '' : '+'}{change.delta.toLocaleString('de-DE')} € ({pct}%)
+                    </span>
+                  </div>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', marginLeft: '8px' }}>
+                    {dateStr}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
