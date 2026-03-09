@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceDot,
+  LineChart, Line, YAxis,
+  ResponsiveContainer,
 } from 'recharts'
 import { formatPrice } from '@/lib/utils'
 import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
-import { format } from 'date-fns'
-import { de } from 'date-fns/locale'
 
 interface Props {
   chartData: Record<string, number | string>[]
@@ -16,75 +14,44 @@ interface Props {
   recentChanges?: PriceChangeWithLocation[]
 }
 
-// Stroke-Dash-Patterns für bessere visuelle Unterscheidung
-const DASH_PATTERNS = [
-  '0',           // solid
-  '8 4',         // dashed
-  '2 3',         // dotted
-  '12 4 2 4',    // dash-dot
-  '0',           // solid
-  '6 3',         // short dash
-  '2 2',         // fine dot
-  '10 3 3 3',    // dash-dot-dot
-  '0',           // solid
-  '4 4',         // even dash
-]
-
-function CustomTooltip({ active, payload, label }: {
-  active?: boolean
-  payload?: { value: number; name: string; color: string; dataKey: string }[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  const sorted = [...payload]
-    .filter(p => p.value !== undefined && p.value !== null)
-    .sort((a, b) => a.value - b.value)
-
-  return (
-    <div
-      style={{
-        background: 'rgba(10,10,18,0.92)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '14px',
-        padding: '12px 16px',
-        backdropFilter: 'blur(20px)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        minWidth: '200px',
-      }}
-    >
-      <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginBottom: '10px', letterSpacing: '0.05em' }}>
-        {label}
-      </div>
-      {sorted.map((p) => (
-        <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', gap: '20px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '7px', color: 'rgba(255,255,255,0.55)', fontSize: '12px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: p.color, flexShrink: 0, boxShadow: `0 0 6px ${p.color}` }} />
-            {p.name}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.92)', fontSize: '13px', fontWeight: 500, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-            {formatPrice(p.value)}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
+interface VehicleCard {
+  suffix: string
+  location: string
+  color: string
+  currentPrice: number
+  firstPrice: number
+  totalDelta: number
+  totalDeltaPct: number
+  sparkData: { price: number }[]
 }
 
 export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = [] }: Props) {
-  const [hoveredVin, setHoveredVin] = useState<string | null>(null)
-  const [hiddenVins, setHiddenVins] = useState<Set<string>>(new Set())
+  // Pro Fahrzeug: Sparkline-Daten, aktueller Preis, Delta berechnen
+  const vehicles = useMemo<VehicleCard[]>(() => {
+    return vinMeta.map(meta => {
+      const prices = chartData
+        .map(d => d[meta.suffix] as number)
+        .filter(p => p !== undefined && p !== null)
 
-  // Preisänderungs-Dots für den Chart berechnen
-  const changeDots = useMemo(() => {
-    if (!recentChanges.length || !chartData.length) return []
-    return recentChanges.map(change => {
-      const dateStr = format(new Date(change.changed_at), 'dd.MM')
-      const vinSuffix = `…${change.vin.slice(-4)}`
-      const dataPoint = chartData.find(d => d.date === dateStr)
-      if (!dataPoint || !dataPoint[vinSuffix]) return null
-      return { date: dateStr, suffix: vinSuffix, price: dataPoint[vinSuffix] as number, delta: change.delta }
-    }).filter(Boolean) as { date: string; suffix: string; price: number; delta: number }[]
-  }, [recentChanges, chartData])
+      const currentPrice = prices[prices.length - 1] || 0
+      const firstPrice = prices[0] || currentPrice
+      const totalDelta = currentPrice - firstPrice
+      const totalDeltaPct = firstPrice > 0 ? (totalDelta / firstPrice) * 100 : 0
+
+      return {
+        suffix: meta.suffix,
+        location: meta.location,
+        color: meta.color,
+        currentPrice,
+        firstPrice,
+        totalDelta,
+        totalDeltaPct,
+        sparkData: prices.map(p => ({ price: p })),
+      }
+    })
+    // Sortieren: größte Preissenkung zuerst
+    .sort((a, b) => a.totalDelta - b.totalDelta)
+  }, [chartData, vinMeta])
 
   if (chartData.length === 0 || vinMeta.length === 0) {
     return (
@@ -97,238 +64,157 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
     )
   }
 
-  const toggle = (suffix: string) => {
-    setHiddenVins(prev => {
-      const next = new Set(prev)
-      next.has(suffix) ? next.delete(suffix) : next.add(suffix)
-      return next
-    })
-  }
-
-  const allPrices = chartData.flatMap(d =>
-    vinMeta.map(m => d[m.suffix] as number).filter(Boolean)
-  )
+  const allPrices = vehicles.map(v => v.currentPrice).filter(Boolean)
   const minPrice = Math.min(...allPrices)
   const maxPrice = Math.max(...allPrices)
-  const padding = (maxPrice - minPrice) * 0.15 || 2000
-  const yMin = Math.floor((minPrice - padding) / 1000) * 1000
-  const yMax = Math.ceil((maxPrice + padding) / 1000) * 1000
 
   return (
-    <div className="card p-6">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+    <div className="card p-4 sm:p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 style={{ fontSize: '15px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>
+          <h2 className="text-[15px] font-medium text-white/85 tracking-tight">
             Preisverlauf
           </h2>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
-            {vinMeta.length} Fahrzeuge · {chartData.length} Tage
+          <p className="text-xs text-white/30 mt-0.5">
+            {vinMeta.length} Fahrzeuge · {chartData.length} Tage · sortiert nach Preisänderung
           </p>
         </div>
-        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>
-          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', fontWeight: 500 }}>
+        <div className="text-right">
+          <div className="text-[13px] font-medium text-white/55 tabular-nums">
             {formatPrice(minPrice)} – {formatPrice(maxPrice)}
           </div>
-          <div style={{ marginTop: '1px' }}>Spanne</div>
+          <div className="text-xs text-white/30 mt-px">Spanne</div>
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
-            axisLine={false}
-            tickLine={false}
-            dy={8}
-          />
-          <YAxis
-            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-            tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}
-            axisLine={false}
-            tickLine={false}
-            domain={[yMin, yMax]}
-            width={36}
-          />
-          <Tooltip
-            content={<CustomTooltip />}
-            cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1 }}
-          />
-
-          {vinMeta.map((meta, i) => {
-            const isHidden = hiddenVins.has(meta.suffix)
-            const isHovered = hoveredVin === meta.suffix
-            const isActive = hoveredVin === null || isHovered
-            const opacity = isHidden ? 0 : isActive ? 1 : 0.12
-
-            return (
-              <Line
-                key={meta.suffix}
-                type="monotoneX"
-                dataKey={meta.suffix}
-                stroke={meta.color}
-                strokeWidth={isHovered ? 3 : 2}
-                strokeOpacity={opacity}
-                strokeDasharray={DASH_PATTERNS[i % DASH_PATTERNS.length]}
-                dot={false}
-                activeDot={{
-                  r: isHovered ? 6 : 4,
-                  fill: meta.color,
-                  stroke: 'rgba(0,0,0,0.8)',
-                  strokeWidth: 2,
-                  style: { filter: `drop-shadow(0 0 8px ${meta.color})` },
-                }}
-                connectNulls
-                name={`${meta.location} (${meta.suffix})`}
-              />
-            )
-          })}
-
-          {/* Preisänderungs-Marker im Chart */}
-          {changeDots.map((dot, i) => {
-            const meta = vinMeta.find(m => m.suffix === dot.suffix)
-            if (!meta || hiddenVins.has(dot.suffix)) return null
-            return (
-              <ReferenceDot
-                key={`change-${i}`}
-                x={dot.date}
-                y={dot.price}
-                r={5}
-                fill={dot.delta < 0 ? '#10b981' : '#ef4444'}
-                stroke="rgba(0,0,0,0.6)"
-                strokeWidth={2}
-              />
-            )
-          })}
-        </LineChart>
-      </ResponsiveContainer>
-
-      {/* Legende — aktueller Preis rechts angezeigt */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {vinMeta.map((meta, i) => {
-          const isHidden = hiddenVins.has(meta.suffix)
-          const isHovered = hoveredVin === meta.suffix
-          // Aktueller Preis = letzter Datenpunkt
-          const lastPoint = chartData[chartData.length - 1]
-          const currentPrice = lastPoint?.[meta.suffix] as number | undefined
-          // Vorheriger Preis = vorletzter Datenpunkt
-          const prevPoint = chartData.length > 1 ? chartData[chartData.length - 2] : null
-          const prevPrice = prevPoint?.[meta.suffix] as number | undefined
-          const priceDelta = currentPrice && prevPrice ? currentPrice - prevPrice : 0
+      {/* Sparkline Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        {vehicles.map((vehicle) => {
+          const hasDrop = vehicle.totalDelta < 0
+          const hasRise = vehicle.totalDelta > 0
+          const sparkMin = Math.min(...vehicle.sparkData.map(d => d.price))
+          const sparkMax = Math.max(...vehicle.sparkData.map(d => d.price))
+          const sparkPad = (sparkMax - sparkMin) * 0.2 || 100
 
           return (
-            <button
-              key={meta.suffix}
-              onClick={() => toggle(meta.suffix)}
-              onMouseEnter={() => setHoveredVin(meta.suffix)}
-              onMouseLeave={() => setHoveredVin(null)}
+            <div
+              key={vehicle.suffix}
+              className="relative overflow-hidden rounded-xl transition-colors"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '12px',
-                color: isHidden ? 'rgba(255,255,255,0.15)' : isHovered ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.5)',
-                background: isHovered ? 'rgba(255,255,255,0.03)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '8px',
-                transition: 'all 0.15s',
-                width: '100%',
-                textAlign: 'left',
+                background: hasDrop
+                  ? 'rgba(16,185,129,0.04)'
+                  : hasRise
+                    ? 'rgba(239,68,68,0.03)'
+                    : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${hasDrop
+                  ? 'rgba(16,185,129,0.1)'
+                  : hasRise
+                    ? 'rgba(239,68,68,0.06)'
+                    : 'rgba(255,255,255,0.04)'}`,
+                padding: '14px 16px 10px',
               }}
             >
-              {/* Farbige Linie mit Dash-Pattern */}
-              <svg width="24" height="2" style={{ flexShrink: 0 }}>
-                <line
-                  x1="0" y1="1" x2="24" y2="1"
-                  stroke={isHidden ? 'rgba(255,255,255,0.15)' : meta.color}
-                  strokeWidth="2"
-                  strokeDasharray={DASH_PATTERNS[i % DASH_PATTERNS.length] || '0'}
-                />
-              </svg>
-              <span style={{ minWidth: '140px' }}>{meta.location}</span>
-              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{meta.suffix}</span>
-              <span style={{ marginLeft: 'auto', fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: isHidden ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.7)' }}>
-                {currentPrice ? formatPrice(currentPrice) : '–'}
-              </span>
-              {priceDelta !== 0 && !isHidden && (
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  color: priceDelta < 0 ? '#10b981' : '#ef4444',
-                  fontVariantNumeric: 'tabular-nums',
-                  minWidth: '60px',
-                  textAlign: 'right',
-                }}>
-                  {priceDelta < 0 ? '' : '+'}{priceDelta.toLocaleString('de-DE')} €
+              {/* Obere Zeile: Standort + VIN */}
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: vehicle.color, boxShadow: `0 0 6px ${vehicle.color}40` }}
+                  />
+                  <span className="text-[13px] text-white/65 font-medium truncate">
+                    {vehicle.location}
+                  </span>
+                </div>
+                <span className="text-[11px] text-white/20 font-mono ml-2 flex-shrink-0">
+                  {vehicle.suffix}
                 </span>
-              )}
-            </button>
+              </div>
+
+              {/* Preis + Delta */}
+              <div className="flex items-baseline justify-between mt-2">
+                <span className="text-lg font-semibold text-white/90 tabular-nums tracking-tight">
+                  {formatPrice(vehicle.currentPrice)}
+                </span>
+                {vehicle.totalDelta !== 0 && (
+                  <span
+                    className="text-xs font-medium tabular-nums"
+                    style={{ color: hasDrop ? '#10b981' : '#ef4444' }}
+                  >
+                    {hasDrop ? '' : '+'}{vehicle.totalDelta.toLocaleString('de-DE')} €
+                    <span className="ml-1 opacity-60">
+                      ({vehicle.totalDeltaPct > 0 ? '+' : ''}{vehicle.totalDeltaPct.toFixed(1)}%)
+                    </span>
+                  </span>
+                )}
+                {vehicle.totalDelta === 0 && (
+                  <span className="text-xs text-white/20">stabil</span>
+                )}
+              </div>
+
+              {/* Sparkline */}
+              <div className="mt-2 -mx-2 -mb-1">
+                <ResponsiveContainer width="100%" height={48}>
+                  <LineChart data={vehicle.sparkData} margin={{ top: 4, right: 2, bottom: 0, left: 2 }}>
+                    <YAxis
+                      hide
+                      domain={[sparkMin - sparkPad, sparkMax + sparkPad]}
+                    />
+                    <Line
+                      type="monotoneX"
+                      dataKey="price"
+                      stroke={hasDrop ? '#10b981' : hasRise ? '#ef4444' : 'rgba(255,255,255,0.25)'}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )
         })}
       </div>
 
       {/* Preisänderungen Detail-Liste */}
       {recentChanges.length > 0 && (
-        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginBottom: '10px', letterSpacing: '0.03em' }}>
+        <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="text-xs text-white/35 mb-3 tracking-wide">
             Letzte Preisänderungen
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="flex flex-col gap-1.5">
             {recentChanges.slice(0, 8).map((change) => {
               const isDown = change.delta < 0
               const pct = ((change.delta / change.price_before) * 100).toFixed(1)
               const vinSuffix = `…${change.vin.slice(-4)}`
-              const dateStr = format(new Date(change.changed_at), 'dd.MM. HH:mm', { locale: de })
 
               return (
                 <div
                   key={change.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-[13px]"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    background: isDown ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
-                    border: `1px solid ${isDown ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'}`,
-                    fontSize: '13px',
+                    background: isDown ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
+                    border: `1px solid ${isDown ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'}`,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '0 0 auto' }}>
-                    <span style={{ fontSize: '14px' }}>{isDown ? '📉' : '📈'}</span>
-                    <div>
-                      <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-                        {change.location || '–'}
-                      </span>
-                      <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '6px', fontSize: '11px' }}>
-                        {vinSuffix}
-                      </span>
-                    </div>
+                  {/* Links: Standort */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm">{isDown ? '📉' : '📈'}</span>
+                    <span className="text-white/60 truncate">{change.location || '–'}</span>
+                    <span className="text-[11px] text-white/20 flex-shrink-0">{vinSuffix}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
-                      {formatPrice(change.price_before)}
-                    </span>
-                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>→</span>
-                    <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                      {formatPrice(change.price_after)}
-                    </span>
-                    <span style={{
-                      color: isDown ? '#10b981' : '#ef4444',
-                      fontWeight: 500,
-                      fontSize: '12px',
-                      fontVariantNumeric: 'tabular-nums',
-                      minWidth: '52px',
-                      textAlign: 'right',
-                    }}>
+                  {/* Rechts: Preise + Delta */}
+                  <div className="flex items-center gap-2 flex-shrink-0 tabular-nums">
+                    <span className="text-white/30 text-xs hidden sm:inline">{formatPrice(change.price_before)}</span>
+                    <span className="text-white/20 hidden sm:inline">→</span>
+                    <span className="text-white/90 font-medium">{formatPrice(change.price_after)}</span>
+                    <span
+                      className="text-xs font-medium min-w-[52px] text-right"
+                      style={{ color: isDown ? '#10b981' : '#ef4444' }}
+                    >
                       {isDown ? '' : '+'}{change.delta.toLocaleString('de-DE')} € ({pct}%)
                     </span>
                   </div>
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', marginLeft: '8px' }}>
-                    {dateStr}
-                  </span>
                 </div>
               )
             })}
