@@ -53,39 +53,39 @@ export default function VinDetailModal({ listing, avgPrice, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/70 dark:bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-lg bg-[#0a0a12] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-5"
+        className="relative w-full max-w-lg bg-popover border border-border rounded-2xl p-6 shadow-2xl space-y-5"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white/90">Model Y Performance</h2>
-            <p className="text-xs text-white/35 font-mono mt-0.5">{listing.vin}</p>
+            <h2 className="text-lg font-semibold text-foreground">Model Y Performance</h2>
+            <p className="text-xs text-subtle-foreground font-mono mt-0.5">{listing.vin}</p>
           </div>
-          <button className="text-white/30 hover:text-white/70 transition-colors p-1" onClick={onClose}>✕</button>
+          <button className="text-subtle-foreground hover:text-foreground/70 transition-colors p-1" onClick={onClose}>✕</button>
         </div>
 
         {/* Score */}
         <div className="flex items-center gap-3">
           <BuyScore result={scoreResult} />
-          <div className="text-xs text-white/35">{scoreResult.reasons.join(' · ')}</div>
+          <div className="text-xs text-subtle-foreground">{scoreResult.reasons.join(' · ')}</div>
         </div>
 
         {/* Price Sparkline */}
         {historyData.length > 1 && (
           <div>
-            <div className="text-xs text-white/35 mb-2">Preisverlauf</div>
+            <div className="text-xs text-subtle-foreground mb-2">Preisverlauf</div>
             <ResponsiveContainer width="100%" height={80}>
               <LineChart data={historyData}>
-                <Line type="monotone" dataKey="price" stroke="#d5bca2" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="price" stroke="var(--primary)" strokeWidth={2} dot={false} />
                 <XAxis dataKey="date" hide />
                 <YAxis hide domain={['auto', 'auto']} />
                 <Tooltip
                   formatter={(v) => (typeof v === 'number' ? formatPrice(v) : String(v))}
-                  contentStyle={{ background: '#0a0a12', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: 'rgba(255,255,255,0.4)' }}
+                  contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: 'var(--muted-foreground)' }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -95,9 +95,9 @@ export default function VinDetailModal({ listing, avgPrice, onClose }: Props) {
         {/* Fields */}
         <div className="grid grid-cols-2 gap-2">
           {fields.map(f => (
-            <div key={f.label} className="bg-white/[0.03] rounded-xl p-3">
-              <div className="text-xs text-white/30 mb-0.5">{f.label}</div>
-              <div className="text-sm text-white/80 font-medium truncate">{f.value}</div>
+            <div key={f.label} className="bg-subtle rounded-xl p-3">
+              <div className="text-xs text-subtle-foreground mb-0.5">{f.label}</div>
+              <div className="text-sm text-foreground/80 font-medium truncate">{f.value}</div>
             </div>
           ))}
         </div>
@@ -108,7 +108,7 @@ export default function VinDetailModal({ listing, avgPrice, onClose }: Props) {
             href={listing.listing_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full text-center py-2.5 rounded-xl border border-[rgba(213,188,162,0.2)] text-sm text-[#d5bca2] hover:bg-[rgba(213,188,162,0.05)] transition-colors"
+            className="block w-full text-center py-2.5 rounded-xl border border-accent text-sm text-primary hover:bg-accent/30 transition-colors"
           >
             Auf Tesla.com ansehen →
           </a>

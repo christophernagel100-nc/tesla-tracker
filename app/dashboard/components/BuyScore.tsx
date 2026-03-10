@@ -15,7 +15,7 @@ export default function BuyScore({ result, compact }: Props) {
     return (
       <span className="flex items-center gap-1.5">
         <span className={cn('w-2 h-2 rounded-full', dotMap[result.color])} />
-        <span className="text-xs text-white/60">{result.score}/10</span>
+        <span className="text-xs text-muted-foreground">{result.score}/10</span>
       </span>
     )
   }

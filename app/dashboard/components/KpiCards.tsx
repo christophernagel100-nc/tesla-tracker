@@ -15,9 +15,9 @@ export default function KpiCards({ stats }: Props) {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {kpis.map((kpi) => (
         <div key={kpi.label} className="card p-5">
-          <div className="text-xs text-white/40 mb-2 uppercase tracking-wide">{kpi.label}</div>
-          <div className="text-2xl font-semibold text-white/95 tracking-tight">{kpi.value}</div>
-          <div className="text-xs text-white/30 mt-1">{kpi.sub}</div>
+          <div className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">{kpi.label}</div>
+          <div className="text-2xl font-semibold text-foreground tracking-tight">{kpi.value}</div>
+          <div className="text-xs text-subtle-foreground mt-1">{kpi.sub}</div>
         </div>
       ))}
     </div>

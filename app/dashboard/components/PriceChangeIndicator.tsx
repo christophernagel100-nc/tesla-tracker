@@ -4,7 +4,7 @@ interface Props { delta: number; deltaPercent?: number; compact?: boolean }
 
 export default function PriceChangeIndicator({ delta, deltaPercent, compact }: Props) {
   if (delta === 0 || delta === undefined || delta === null) {
-    return <span className="text-white/25 text-xs">–</span>
+    return <span className="text-subtle-foreground text-xs">–</span>
   }
 
   const isDown = delta < 0

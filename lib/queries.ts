@@ -78,7 +78,7 @@ const VIN_COLORS = [
   '#06b6d4', '#f97316', '#ef4444', '#84cc16', '#ec4899',
 ]
 
-export interface VinMeta { suffix: string; location: string; color: string }
+export interface VinMeta { vin: string; suffix: string; location: string; color: string }
 
 export async function getAllVinPriceHistory(): Promise<{
   chartData: Record<string, number | string>[]
@@ -102,6 +102,7 @@ export async function getAllVinPriceHistory(): Promise<{
 
   const vins = Array.from(vinLocationMap.keys())
   const vinMeta: VinMeta[] = vins.map((vin, i) => ({
+    vin,
     suffix: `…${vin.slice(-4)}`,
     location: vinLocationMap.get(vin)!,
     color: VIN_COLORS[i % VIN_COLORS.length],

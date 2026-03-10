@@ -25,6 +25,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-subtle: var(--subtle);
+  --color-subtle-foreground: var(--subtle-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -33,8 +35,46 @@
   --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ===== LIGHT THEME (Default / :root) ===== */
 :root {
   --radius: 0.625rem;
+  --background: #f5efe6;
+  --foreground: #2a2118;
+  --card: rgba(255, 255, 255, 0.75);
+  --card-foreground: #2a2118;
+  --popover: #ffffff;
+  --popover-foreground: #2a2118;
+  --primary: #8b6f47;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(139, 111, 71, 0.08);
+  --secondary-foreground: #6b5d4f;
+  --muted: rgba(139, 111, 71, 0.06);
+  --muted-foreground: #9a8b7a;
+  --subtle: rgba(42, 33, 24, 0.04);
+  --subtle-foreground: rgba(42, 33, 24, 0.25);
+  --accent: rgba(139, 111, 71, 0.12);
+  --accent-foreground: #8b6f47;
+  --destructive: #dc2626;
+  --border: rgba(180, 160, 130, 0.25);
+  --input: rgba(180, 160, 130, 0.18);
+  --ring: rgba(139, 111, 71, 0.35);
+  --chart-1: #8b6f47;
+  --chart-2: #6366f1;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #dc2626;
+  --sidebar: #ebe3d6;
+  --sidebar-foreground: #6b5d4f;
+  --sidebar-primary: #8b6f47;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(139, 111, 71, 0.1);
+  --sidebar-accent-foreground: #8b6f47;
+  --sidebar-border: rgba(180, 160, 130, 0.2);
+  --sidebar-ring: rgba(139, 111, 71, 0.25);
+}
+
+/* ===== DARK THEME ===== */
+.dark {
   --background: #000000;
   --foreground: rgba(255, 255, 255, 0.95);
   --card: rgba(255, 255, 255, 0.05);
@@ -47,6 +87,8 @@
   --secondary-foreground: rgba(255, 255, 255, 0.8);
   --muted: rgba(255, 255, 255, 0.05);
   --muted-foreground: rgba(255, 255, 255, 0.55);
+  --subtle: rgba(255, 255, 255, 0.03);
+  --subtle-foreground: rgba(255, 255, 255, 0.25);
   --accent: rgba(213, 188, 162, 0.15);
   --accent-foreground: #d5bca2;
   --destructive: #ef4444;
@@ -92,50 +134,67 @@ body { color: var(--foreground); background: transparent; -webkit-font-smoothing
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 999px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+:root ::-webkit-scrollbar-thumb { background: rgba(139, 111, 71, 0.2); }
 
 @utility card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @utility card-glass {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--card);
   backdrop-filter: blur(25px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border);
   border-radius: 16px;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  &:hover { border-color: rgba(213, 188, 162, 0.25); }
+  &:hover { border-color: var(--accent-foreground); }
 }
 @utility card-interactive {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  &:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(213, 188, 162, 0.35); transform: translateY(-1px); }
+  &:hover { background: var(--accent); border-color: var(--accent-foreground); transform: translateY(-1px); }
 }
 @utility gradient-text {
-  background: linear-gradient(135deg, #d5bca2, #c4a882);
+  background: linear-gradient(135deg, var(--primary), var(--accent-foreground));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 @utility shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background: linear-gradient(90deg, var(--subtle) 25%, var(--muted) 50%, var(--subtle) 75%);
   background-size: 200% 100%; animation: shimmer 1.8s infinite; border-radius: 8px;
 }
 
-.dashboard-gradient-orb-1 {
+/* Gradient Orbs — Dark */
+.dark .dashboard-gradient-orb-1 {
   position: fixed; top: -15%; left: -10%; width: 500px; height: 500px;
   border-radius: 50%; pointer-events: none; z-index: 0;
   background: rgba(213, 188, 162, 0.15); filter: blur(120px);
   animation: orb-drift 30s ease-in-out infinite;
 }
-.dashboard-gradient-orb-2 {
+.dark .dashboard-gradient-orb-2 {
   position: fixed; bottom: -15%; right: -10%; width: 500px; height: 500px;
   border-radius: 50%; pointer-events: none; z-index: 0;
   background: rgba(99, 102, 241, 0.12); filter: blur(120px);
   animation: orb-drift 25s ease-in-out infinite reverse;
 }
+/* Gradient Orbs — Light */
+:root .dashboard-gradient-orb-1 {
+  position: fixed; top: -15%; left: -10%; width: 500px; height: 500px;
+  border-radius: 50%; pointer-events: none; z-index: 0;
+  background: rgba(213, 188, 162, 0.25); filter: blur(150px);
+  animation: orb-drift 30s ease-in-out infinite;
+}
+:root .dashboard-gradient-orb-2 {
+  position: fixed; bottom: -15%; right: -10%; width: 500px; height: 500px;
+  border-radius: 50%; pointer-events: none; z-index: 0;
+  background: rgba(139, 111, 71, 0.08); filter: blur(150px);
+  animation: orb-drift 25s ease-in-out infinite reverse;
+}
+
 .noise-overlay {
   position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");

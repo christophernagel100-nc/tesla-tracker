@@ -5,16 +5,20 @@ import {
   LineChart, Line, YAxis,
   ResponsiveContainer,
 } from 'recharts'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, formatKm } from '@/lib/utils'
 import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
+import type { TeslaCurrentListing } from '@/lib/types'
 
 interface Props {
   chartData: Record<string, number | string>[]
   vinMeta: VinMeta[]
   recentChanges?: PriceChangeWithLocation[]
+  listings?: TeslaCurrentListing[]
+  onSelectVin?: (vin: string) => void
 }
 
 interface VehicleCard {
+  vin: string
   suffix: string
   location: string
   color: string
@@ -22,10 +26,18 @@ interface VehicleCard {
   firstPrice: number
   totalDelta: number
   totalDeltaPct: number
+  odometerKm: number | null
   sparkData: { price: number }[]
 }
 
-export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = [] }: Props) {
+export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = [], listings = [], onSelectVin }: Props) {
+  // Odometer-Map aus Listings
+  const odometerMap = useMemo(() => {
+    const map = new Map<string, number | null>()
+    for (const l of listings) map.set(l.vin, l.odometer_km)
+    return map
+  }, [listings])
+
   // Pro Fahrzeug: Sparkline-Daten, aktueller Preis, Delta berechnen
   const vehicles = useMemo<VehicleCard[]>(() => {
     return vinMeta.map(meta => {
@@ -39,6 +51,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
       const totalDeltaPct = firstPrice > 0 ? (totalDelta / firstPrice) * 100 : 0
 
       return {
+        vin: meta.vin,
         suffix: meta.suffix,
         location: meta.location,
         color: meta.color,
@@ -46,18 +59,19 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
         firstPrice,
         totalDelta,
         totalDeltaPct,
+        odometerKm: odometerMap.get(meta.vin) ?? null,
         sparkData: prices.map(p => ({ price: p })),
       }
     })
     // Sortieren: größte Preissenkung zuerst
     .sort((a, b) => a.totalDelta - b.totalDelta)
-  }, [chartData, vinMeta])
+  }, [chartData, vinMeta, odometerMap])
 
   if (chartData.length === 0 || vinMeta.length === 0) {
     return (
       <div className="card p-6">
-        <h2 className="text-sm font-medium text-white/50 mb-4">Preisverlauf</h2>
-        <div className="h-52 flex items-center justify-center text-white/25 text-sm">
+        <h2 className="text-sm font-medium text-muted-foreground mb-4">Preisverlauf</h2>
+        <div className="h-52 flex items-center justify-center text-subtle-foreground text-sm">
           Noch keine Daten — Tracking läuft 3x täglich
         </div>
       </div>
@@ -73,18 +87,18 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-[15px] font-medium text-white/85 tracking-tight">
+          <h2 className="text-[15px] font-medium text-foreground/85 tracking-tight">
             Preisverlauf
           </h2>
-          <p className="text-xs text-white/30 mt-0.5">
+          <p className="text-xs text-subtle-foreground mt-0.5">
             {vinMeta.length} Fahrzeuge · {chartData.length} Tage · sortiert nach Preisänderung
           </p>
         </div>
         <div className="text-right">
-          <div className="text-[13px] font-medium text-white/55 tabular-nums">
+          <div className="text-[13px] font-medium text-muted-foreground tabular-nums">
             {formatPrice(minPrice)} – {formatPrice(maxPrice)}
           </div>
-          <div className="text-xs text-white/30 mt-px">Spanne</div>
+          <div className="text-xs text-subtle-foreground mt-px">Spanne</div>
         </div>
       </div>
 
@@ -100,18 +114,19 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
           return (
             <div
               key={vehicle.suffix}
-              className="relative overflow-hidden rounded-xl transition-colors"
+              className={`relative overflow-hidden rounded-xl transition-colors ${onSelectVin ? 'cursor-pointer hover:brightness-110 dark:hover:brightness-125' : ''}`}
+              onClick={() => onSelectVin?.(vehicle.vin)}
               style={{
                 background: hasDrop
                   ? 'rgba(16,185,129,0.04)'
                   : hasRise
                     ? 'rgba(239,68,68,0.03)'
-                    : 'rgba(255,255,255,0.02)',
+                    : 'var(--subtle)',
                 border: `1px solid ${hasDrop
                   ? 'rgba(16,185,129,0.1)'
                   : hasRise
                     ? 'rgba(239,68,68,0.06)'
-                    : 'rgba(255,255,255,0.04)'}`,
+                    : 'var(--border)'}`,
                 padding: '14px 16px 10px',
               }}
             >
@@ -122,24 +137,31 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ background: vehicle.color, boxShadow: `0 0 6px ${vehicle.color}40` }}
                   />
-                  <span className="text-[13px] text-white/65 font-medium truncate">
+                  <span className="text-[13px] text-muted-foreground font-medium truncate">
                     {vehicle.location}
                   </span>
                 </div>
-                <span className="text-[11px] text-white/20 font-mono ml-2 flex-shrink-0">
-                  {vehicle.suffix}
-                </span>
+                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                  {vehicle.odometerKm != null && (
+                    <span className="text-[11px] text-subtle-foreground tabular-nums">
+                      {formatKm(vehicle.odometerKm)}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-subtle-foreground/70 font-mono">
+                    {vehicle.suffix}
+                  </span>
+                </div>
               </div>
 
               {/* Preis + Delta */}
               <div className="flex items-baseline justify-between mt-2">
-                <span className="text-lg font-semibold text-white/90 tabular-nums tracking-tight">
+                <span className="text-lg font-semibold text-foreground tabular-nums tracking-tight">
                   {formatPrice(vehicle.currentPrice)}
                 </span>
                 {vehicle.totalDelta !== 0 && (
                   <span
                     className="text-xs font-medium tabular-nums"
-                    style={{ color: hasDrop ? '#10b981' : '#ef4444' }}
+                    style={{ color: hasDrop ? 'var(--chart-3)' : 'var(--chart-5)' }}
                   >
                     {hasDrop ? '' : '+'}{vehicle.totalDelta.toLocaleString('de-DE')} €
                     <span className="ml-1 opacity-60">
@@ -148,7 +170,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                   </span>
                 )}
                 {vehicle.totalDelta === 0 && (
-                  <span className="text-xs text-white/20">stabil</span>
+                  <span className="text-xs text-subtle-foreground">stabil</span>
                 )}
               </div>
 
@@ -163,7 +185,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                     <Line
                       type="monotoneX"
                       dataKey="price"
-                      stroke={hasDrop ? '#10b981' : hasRise ? '#ef4444' : 'rgba(255,255,255,0.25)'}
+                      stroke={hasDrop ? 'var(--chart-3)' : hasRise ? 'var(--chart-5)' : 'var(--muted-foreground)'}
                       strokeWidth={2}
                       dot={false}
                       activeDot={false}
@@ -178,8 +200,8 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
 
       {/* Preisänderungen Detail-Liste */}
       {recentChanges.length > 0 && (
-        <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="text-xs text-white/35 mb-3 tracking-wide">
+        <div className="mt-5 pt-4 border-t border-border">
+          <div className="text-xs text-subtle-foreground mb-3 tracking-wide">
             Letzte Preisänderungen
           </div>
           <div className="flex flex-col gap-1.5">
@@ -200,17 +222,17 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                   {/* Links: Standort */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm">{isDown ? '📉' : '📈'}</span>
-                    <span className="text-white/60 truncate">{change.location || '–'}</span>
-                    <span className="text-[11px] text-white/20 flex-shrink-0">{vinSuffix}</span>
+                    <span className="text-muted-foreground truncate">{change.location || '–'}</span>
+                    <span className="text-[11px] text-subtle-foreground flex-shrink-0">{vinSuffix}</span>
                   </div>
                   {/* Rechts: Preise + Delta */}
                   <div className="flex items-center gap-2 flex-shrink-0 tabular-nums">
-                    <span className="text-white/30 text-xs hidden sm:inline">{formatPrice(change.price_before)}</span>
-                    <span className="text-white/20 hidden sm:inline">→</span>
-                    <span className="text-white/90 font-medium">{formatPrice(change.price_after)}</span>
+                    <span className="text-subtle-foreground text-xs hidden sm:inline">{formatPrice(change.price_before)}</span>
+                    <span className="text-subtle-foreground/70 hidden sm:inline">→</span>
+                    <span className="text-foreground font-medium">{formatPrice(change.price_after)}</span>
                     <span
                       className="text-xs font-medium min-w-[52px] text-right"
-                      style={{ color: isDown ? '#10b981' : '#ef4444' }}
+                      style={{ color: isDown ? 'var(--chart-3)' : 'var(--chart-5)' }}
                     >
                       {isDown ? '' : '+'}{change.delta.toLocaleString('de-DE')} € ({pct}%)
                     </span>
