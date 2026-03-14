@@ -1,3 +1,5 @@
+export type ListingSource = 'tesla.com' | 'mobile.de' | 'kleinanzeigen.de'
+
 export interface TeslaSnapshot {
   id: string
   fetched_at: string
@@ -11,6 +13,8 @@ export interface TeslaSnapshot {
   has_damage_history: boolean | null
   listing_url: string | null
   raw_json: Record<string, unknown> | null
+  source: ListingSource
+  source_listing_id: string | null
 }
 
 export interface TeslaVehicle {
@@ -19,6 +23,7 @@ export interface TeslaVehicle {
   last_seen: string
   is_sold: boolean
   sold_at: string | null
+  sources: ListingSource[]
 }
 
 export interface TeslaPriceChange {
@@ -29,6 +34,7 @@ export interface TeslaPriceChange {
   price_after: number
   delta: number
   delta_pct: number
+  source: ListingSource
 }
 
 export interface TeslaCurrentListing extends TeslaSnapshot {
@@ -36,6 +42,14 @@ export interface TeslaCurrentListing extends TeslaSnapshot {
   last_seen: string
   is_sold: boolean
   days_on_market: number
+  sources: ListingSource[]
+}
+
+export interface SourceStats {
+  source: ListingSource
+  count: number
+  avgPrice: number
+  lowestPrice: number
 }
 
 export interface DashboardStats {
@@ -43,4 +57,24 @@ export interface DashboardStats {
   avgPrice: number
   lowestPrice: number
   priceDrops24h: number
+  bySource: SourceStats[]
+}
+
+export interface CrossSourceMatch {
+  vin: string
+  prices: Partial<Record<ListingSource, number>>
+  priceDiff: number
+  cheapestSource: ListingSource
+}
+
+export const SOURCE_COLORS: Record<ListingSource, string> = {
+  'tesla.com': '#ef4444',
+  'mobile.de': '#3b82f6',
+  'kleinanzeigen.de': '#10b981',
+}
+
+export const SOURCE_LABELS: Record<ListingSource, string> = {
+  'tesla.com': 'Tesla',
+  'mobile.de': 'mobile.de',
+  'kleinanzeigen.de': 'Kleinanz.',
 }

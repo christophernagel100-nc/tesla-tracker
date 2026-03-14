@@ -7,7 +7,8 @@ import {
 } from 'recharts'
 import { formatPrice, formatKm } from '@/lib/utils'
 import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
-import type { TeslaCurrentListing } from '@/lib/types'
+import type { TeslaCurrentListing, ListingSource } from '@/lib/types'
+import { SOURCE_COLORS, SOURCE_LABELS } from '@/lib/types'
 
 interface Props {
   chartData: Record<string, number | string>[]
@@ -22,6 +23,7 @@ interface VehicleCard {
   suffix: string
   location: string
   color: string
+  source: ListingSource
   currentPrice: number
   firstPrice: number
   totalDelta: number
@@ -55,6 +57,7 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
         suffix: meta.suffix,
         location: meta.location,
         color: meta.color,
+        source: meta.source,
         currentPrice,
         firstPrice,
         totalDelta,
@@ -130,18 +133,27 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                 padding: '14px 16px 10px',
               }}
             >
-              {/* Obere Zeile: Standort + VIN */}
+              {/* Obere Zeile: Source + Standort + VIN */}
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: vehicle.color, boxShadow: `0 0 6px ${vehicle.color}40` }}
+                    style={{ background: SOURCE_COLORS[vehicle.source], boxShadow: `0 0 6px ${SOURCE_COLORS[vehicle.source]}40` }}
                   />
                   <span className="text-[13px] text-muted-foreground font-medium truncate">
                     {vehicle.location}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                  <span
+                    className="text-[10px] font-medium px-1 py-px rounded"
+                    style={{
+                      color: SOURCE_COLORS[vehicle.source],
+                      background: `${SOURCE_COLORS[vehicle.source]}10`,
+                    }}
+                  >
+                    {SOURCE_LABELS[vehicle.source]}
+                  </span>
                   {vehicle.odometerKm != null && (
                     <span className="text-[11px] text-subtle-foreground tabular-nums">
                       {formatKm(vehicle.odometerKm)}
@@ -219,9 +231,16 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
                     border: `1px solid ${isDown ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)'}`,
                   }}
                 >
-                  {/* Links: Standort */}
+                  {/* Links: Source + Standort */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm">{isDown ? '📉' : '📈'}</span>
+                    {change.source && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ background: SOURCE_COLORS[change.source] }}
+                        title={SOURCE_LABELS[change.source]}
+                      />
+                    )}
                     <span className="text-muted-foreground truncate">{change.location || '–'}</span>
                     <span className="text-[11px] text-subtle-foreground flex-shrink-0">{vinSuffix}</span>
                   </div>

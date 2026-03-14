@@ -11,7 +11,7 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   const reasons: string[] = []
   let score = 0
 
-  // Hardware-Generation: Ultraschallsensoren (bis 09/2022) oder Garantiefahrzeug (2024+, <40k km)
+  // Hardware-Generation: Ultraschallsensoren (bis 09/2022)
   const regYear = listing.registration_year
   const regMonth = listing.registration_month
   const km = listing.odometer_km || 0
@@ -19,14 +19,10 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   if (regYear !== null) {
     const hasUltrasonic =
       regYear < 2022 || (regYear === 2022 && regMonth !== null && regMonth <= 9)
-    const hasWarranty = regYear >= 2024 && km < 40000
 
     if (hasUltrasonic) {
       score += 3
       reasons.push('Ultraschallsensoren (≤ 09/2022)')
-    } else if (hasWarranty) {
-      score += 3
-      reasons.push('Garantiefahrzeug (2024+)')
     }
   }
 
@@ -42,11 +38,18 @@ export function calcBuyScore(listing: TeslaCurrentListing, avgPrice: number): Sc
   else if (km < 40000) { score += 2; reasons.push('Unter 40.000 km') }
   else if (km < 70000) { score += 1; reasons.push('Unter 70.000 km') }
 
-  // Anhängerkupplung
-  if (listing.has_towbar) { score += 1; reasons.push('Mit Anhängerkupplung') }
-
   // Lang online (Tesla hat Druck)
   if (listing.days_on_market > 14) { score += 1; reasons.push(`${listing.days_on_market} Tage online`) }
+
+  // Quartalsende-Faktor: Tesla senkt Preise zum Quartalsende
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const isQuarterEndMonth = [3, 6, 9, 12].includes(month)
+  if (isQuarterEndMonth && day >= 21) {
+    score += 1
+    reasons.push('Quartalsende — Preisfall wahrscheinlich')
+  }
 
   // Bewertung
   if (score >= 7) return { score, color: 'green', label: 'Kaufempfehlung', reasons }

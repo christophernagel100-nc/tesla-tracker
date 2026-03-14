@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { formatPrice, formatKm, formatRegistration } from '@/lib/utils'
 import { calcBuyScore } from '@/lib/scoring'
 import BuyScore from './BuyScore'
-import type { TeslaCurrentListing } from '@/lib/types'
+import type { TeslaCurrentListing, ListingSource } from '@/lib/types'
+import { SOURCE_COLORS, SOURCE_LABELS } from '@/lib/types'
 
 interface Props {
   listings: TeslaCurrentListing[]
@@ -15,11 +16,31 @@ interface Props {
 type SortKey = 'price' | 'odometer_km' | 'registration_year' | 'days_on_market' | 'score'
 type SortDir = 'asc' | 'desc'
 
+function SourceBadge({ source }: { source: ListingSource }) {
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+      style={{
+        background: `${SOURCE_COLORS[source]}15`,
+        color: SOURCE_COLORS[source],
+        border: `1px solid ${SOURCE_COLORS[source]}25`,
+      }}
+    >
+      {SOURCE_LABELS[source]}
+    </span>
+  )
+}
+
 export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [sourceFilter, setSourceFilter] = useState<ListingSource | 'all'>('all')
 
-  const scoredListings = listings.map(l => ({ ...l, scoreResult: calcBuyScore(l, avgPrice) }))
+  const filteredListings = sourceFilter === 'all'
+    ? listings
+    : listings.filter(l => l.source === sourceFilter)
+
+  const scoredListings = filteredListings.map(l => ({ ...l, scoreResult: calcBuyScore(l, avgPrice) }))
 
   const sorted = [...scoredListings].sort((a, b) => {
     let av: number, bv: number
@@ -33,6 +54,9 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
     else { setSortKey(key); setSortDir('asc') }
   }
 
+  // Unique sources in current data
+  const availableSources = [...new Set(listings.map(l => l.source))]
+
   const SortHeader = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
     <th
       className="text-left text-xs font-medium text-subtle-foreground pb-3 cursor-pointer select-none hover:text-muted-foreground transition-colors whitespace-nowrap"
@@ -45,35 +69,66 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
   if (listings.length === 0) {
     return (
       <div className="card p-8 text-center text-subtle-foreground text-sm">
-        Noch keine Listings — n8n Workflow läuft 3x täglich
+        Noch keine Listings — Tracker läuft 3x täglich
       </div>
     )
   }
 
   return (
     <div className="card p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-4 sm:mb-5">
+      <div className="flex items-center justify-between mb-4 sm:mb-5 gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">
-          Aktuelle Angebote <span className="text-subtle-foreground font-normal ml-1">({listings.length})</span>
+          Aktuelle Angebote <span className="text-subtle-foreground font-normal ml-1">({filteredListings.length})</span>
         </h2>
-        {/* Mobile Sort-Dropdown */}
-        <div className="sm:hidden">
-          <select
-            value={`${sortKey}-${sortDir}`}
-            onChange={(e) => {
-              const [key, dir] = e.target.value.split('-') as [SortKey, SortDir]
-              setSortKey(key)
-              setSortDir(dir)
-            }}
-            className="text-xs bg-input border border-border rounded-lg px-2 py-1.5 text-muted-foreground appearance-none"
-          >
-            <option value="price-asc">Preis ↑</option>
-            <option value="price-desc">Preis ↓</option>
-            <option value="score-desc">Score ↓</option>
-            <option value="odometer_km-asc">km ↑</option>
-            <option value="registration_year-desc">Neueste</option>
-            <option value="days_on_market-desc">Online ↓</option>
-          </select>
+        <div className="flex items-center gap-2">
+          {/* Source Filter */}
+          {availableSources.length > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSourceFilter('all')}
+                className={`px-2 py-1 rounded text-[11px] transition-colors ${
+                  sourceFilter === 'all'
+                    ? 'bg-foreground/10 text-foreground font-medium'
+                    : 'text-subtle-foreground hover:text-muted-foreground'
+                }`}
+              >
+                Alle
+              </button>
+              {availableSources.map(src => (
+                <button
+                  key={src}
+                  onClick={() => setSourceFilter(src)}
+                  className={`px-2 py-1 rounded text-[11px] transition-colors ${
+                    sourceFilter === src
+                      ? 'font-medium'
+                      : 'opacity-50 hover:opacity-80'
+                  }`}
+                  style={{ color: SOURCE_COLORS[src] }}
+                >
+                  {SOURCE_LABELS[src]}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Mobile Sort-Dropdown */}
+          <div className="sm:hidden">
+            <select
+              value={`${sortKey}-${sortDir}`}
+              onChange={(e) => {
+                const [key, dir] = e.target.value.split('-') as [SortKey, SortDir]
+                setSortKey(key)
+                setSortDir(dir)
+              }}
+              className="text-xs bg-input border border-border rounded-lg px-2 py-1.5 text-muted-foreground appearance-none"
+            >
+              <option value="price-asc">Preis ↑</option>
+              <option value="price-desc">Preis ↓</option>
+              <option value="score-desc">Score ↓</option>
+              <option value="odometer_km-asc">km ↑</option>
+              <option value="registration_year-desc">Neueste</option>
+              <option value="days_on_market-desc">Online ↓</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -81,13 +136,14 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
       <div className="sm:hidden space-y-2">
         {sorted.map((listing) => (
           <div
-            key={listing.vin}
+            key={`${listing.vin}-${listing.source}`}
             className="p-3 rounded-xl bg-subtle border border-border active:bg-muted transition-colors cursor-pointer"
             onClick={() => onSelectVin(listing.vin)}
           >
             <div className="flex items-start justify-between mb-1.5">
               <div className="flex items-center gap-2">
                 <BuyScore result={listing.scoreResult} compact />
+                <SourceBadge source={listing.source} />
                 <span className="text-sm text-muted-foreground">{listing.location || '–'}</span>
               </div>
               <span className="text-sm font-medium text-foreground tabular-nums">{formatPrice(listing.price)}</span>
@@ -112,6 +168,7 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
           <thead>
             <tr>
               <SortHeader k="score">Score</SortHeader>
+              <th className="text-left text-xs font-medium text-subtle-foreground pb-3">Quelle</th>
               <th className="text-left text-xs font-medium text-subtle-foreground pb-3">Standort</th>
               <SortHeader k="registration_year">Zulassung</SortHeader>
               <SortHeader k="odometer_km">km-Stand</SortHeader>
@@ -125,11 +182,12 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
           <tbody className="divide-y divide-border">
             {sorted.map((listing) => (
               <tr
-                key={listing.vin}
+                key={`${listing.vin}-${listing.source}`}
                 className="hover:bg-subtle cursor-pointer transition-colors"
                 onClick={() => onSelectVin(listing.vin)}
               >
                 <td className="py-3 pr-4"><BuyScore result={listing.scoreResult} /></td>
+                <td className="py-3 pr-4"><SourceBadge source={listing.source} /></td>
                 <td className="py-3 pr-4 text-sm text-muted-foreground whitespace-nowrap">{listing.location || '–'}</td>
                 <td className="py-3 pr-4 text-sm text-muted-foreground tabular-nums">
                   {formatRegistration(listing.registration_month, listing.registration_year)}
@@ -145,7 +203,9 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
                 <td className="py-3 pr-4 text-sm text-muted-foreground tabular-nums">
                   {listing.days_on_market === 0 ? '?' : `${listing.days_on_market}d`}
                 </td>
-                <td className="py-3 text-xs text-subtle-foreground font-mono">{listing.vin.slice(-6)}</td>
+                <td className="py-3 text-xs text-subtle-foreground font-mono">
+                  {listing.vin.startsWith('NVIN-') ? listing.vin.slice(-6) : listing.vin.slice(-6)}
+                </td>
               </tr>
             ))}
           </tbody>

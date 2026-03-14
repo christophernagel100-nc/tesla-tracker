@@ -43,7 +43,7 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Tesla Model Y <span className="gradient-text">Performance</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Preismonitor — DE Gebrauchtmarkt</p>
+            <p className="text-sm text-muted-foreground mt-1">Preismonitor — Tesla.com · mobile.de · Kleinanzeigen</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
@@ -88,6 +88,7 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
       {selectedVin && selectedListing && (
         <VinDetailModal
           listing={selectedListing}
+          allListings={listings}
           avgPrice={stats.avgPrice}
           onClose={() => setSelectedVin(null)}
         />
