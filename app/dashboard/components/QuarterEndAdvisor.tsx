@@ -50,11 +50,14 @@ export default function QuarterEndAdvisor() {
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [chatOpen, setChatOpen] = useState(true)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (container) {
+      container.scrollTop = container.scrollHeight
+    }
   }, [messages])
 
   async function sendMessage(text?: string) {
@@ -143,45 +146,48 @@ export default function QuarterEndAdvisor() {
             </div>
 
             {/* Timeline Bar */}
-            <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-              {/* Progress fill */}
+            <div className="relative h-3 my-1">
+              {/* Track */}
+              <div className="absolute inset-0 bg-muted rounded-full overflow-hidden">
+                {/* Progress fill */}
+                <div
+                  className="absolute inset-y-0 left-0 bg-linear-to-r from-indigo-500/40 to-indigo-500/60 transition-all duration-500"
+                  style={{ width: `${info.percentComplete}%` }}
+                />
+                {/* Price drop zone */}
+                <div
+                  className="absolute inset-y-0 bg-emerald-500/20 border-l border-emerald-500/40"
+                  style={{ left: `${priceDropStartPercent}%`, right: '0%' }}
+                />
+              </div>
+              {/* Latest order marker (outside overflow-hidden) */}
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-linear-to-r from-indigo-500/40 to-indigo-500/60 transition-all duration-500"
-                style={{ width: `${info.percentComplete}%` }}
-              />
-              {/* Price drop zone */}
-              <div
-                className="absolute inset-y-0 rounded-full bg-emerald-500/20 border-l border-emerald-500/40"
-                style={{ left: `${priceDropStartPercent}%`, right: '0%' }}
-              />
-              {/* Latest order marker */}
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-amber-500/80"
+                className="absolute top-0 bottom-0 w-0.5 bg-amber-500"
                 style={{ left: `${latestOrderPos}%` }}
               />
-              {/* Today indicator */}
+              {/* Today indicator (outside overflow-hidden so it's not clipped) */}
               <div
-                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-indigo-500 border-2 border-background shadow-[0_0_0_2px_rgba(99,102,241,0.3)] transition-all duration-500"
-                style={{ left: `${info.percentComplete}%`, transform: `translateX(-50%) translateY(-50%)` }}
+                className="absolute top-1/2 w-4 h-4 rounded-full bg-indigo-500 border-2 border-background shadow-[0_0_0_3px_rgba(99,102,241,0.3)] transition-all duration-500"
+                style={{ left: `${info.percentComplete}%`, transform: 'translate(-50%, -50%)' }}
               />
             </div>
 
             {/* Timeline Labels */}
-            <div className="relative mt-2 h-5 text-[9px] text-muted-foreground">
-              <span className="absolute left-0">Jan</span>
+            <div className="relative mt-3 h-5 text-[10px] font-medium">
+              <span className="absolute left-0 text-muted-foreground">Jan</span>
               <span
-                className="absolute text-emerald-500/70 -translate-x-1/2"
+                className="absolute text-emerald-400 -translate-x-1/2"
                 style={{ left: `${priceDropStartPercent}%` }}
               >
                 Preisfenster
               </span>
               <span
-                className="absolute text-amber-500/70 -translate-x-1/2"
+                className="absolute text-amber-400 -translate-x-1/2"
                 style={{ left: `${latestOrderPos}%` }}
               >
                 Letzter Bestelltag
               </span>
-              <span className="absolute right-0">
+              <span className="absolute right-0 text-muted-foreground">
                 {formatGermanDate(info.quarterEndDate)}
               </span>
             </div>
@@ -292,7 +298,7 @@ export default function QuarterEndAdvisor() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 max-h-[340px]">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 max-h-[340px]">
               {messages.length === 0 && (
                 <div className="space-y-2">
                   <p className="text-xs text-subtle-foreground mb-3">Frag mich zum Tesla-Kauf:</p>
@@ -324,7 +330,6 @@ export default function QuarterEndAdvisor() {
                   )}
                 </div>
               ))}
-              <div ref={bottomRef} />
             </div>
 
             {/* Input */}
