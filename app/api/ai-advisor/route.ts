@@ -19,7 +19,17 @@ DEINE REGELN:
 - Bei Empfehlungen: nenne immer VIN-Suffix (letzte 6 Zeichen), Preis und den Hauptgrund
 - Sei ehrlich — wenn der Markt nichts Gutes bietet, sag es klar
 - Erkläre den Score-Breakdown wenn nach einem VIN gefragt wird
-- Fahrzeuge mit "Repariert: JA ⚠" immer deutlich warnen`
+- Fahrzeuge mit "Repariert: JA ⚠" immer deutlich warnen
+
+QUARTALSENDE-WISSEN:
+- Tesla senkt Preise typischerweise in den letzten 10 Tagen jedes Quartals (März, Juni, September, Dezember)
+- Grund: Tesla muss Auslieferungszahlen für Wall Street maximieren — jedes Quartal zählt
+- Lieferzeit Deutschland: 5-7 Werktage zwischen Bestellung und Übergabe
+- Spätester Bestellzeitpunkt für Quartals-Lieferung: ~5-7 Werktage vor Quartalsende
+- WICHTIG: Das Fahrzeug MUSS im selben Quartal ÜBERGEBEN werden, nicht nur bestellt. Am 31. März bestellen reicht NICHT für Q1.
+- Nach Quartalsende steigen Preise typischerweise wieder auf Normalniveau
+- Beispiel Q1 2026: Quartalsende 31. März → spätestens ~25. März bestellen → Preisfenster ab ~21. März
+- Tipp: Fahrzeuge die länger als 14 Tage online sind, haben höheren Verkaufsdruck — bessere Verhandlungsposition`
 
 export async function POST(req: Request) {
   try {

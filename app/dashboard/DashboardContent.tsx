@@ -5,14 +5,11 @@ import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 import type { TeslaCurrentListing, DashboardStats } from '@/lib/types'
 import type { VinMeta, PriceChangeWithLocation } from '@/lib/queries'
-import { getDaysUntil } from '@/lib/utils'
 import KpiCards from './components/KpiCards'
-import CountdownBanner from './components/CountdownBanner'
+import QuarterEndAdvisor from './components/QuarterEndAdvisor'
 import PriceHistoryChart from './components/PriceHistoryChart'
 import ListingsTable from './components/ListingsTable'
 import VinDetailModal from './components/VinDetailModal'
-import MarketBriefing from './components/MarketBriefing'
-import AiAdvisor from './components/AiAdvisor'
 
 interface Props {
   listings: TeslaCurrentListing[]
@@ -25,10 +22,6 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
   const [selectedVin, setSelectedVin] = useState<string | null>(null)
   const selectedListing = listings.find(l => l.vin === selectedVin) || null
   const { theme, setTheme } = useTheme()
-
-  const KAUFZIEL = new Date('2026-03-25')
-  const daysUntil = getDaysUntil(KAUFZIEL)
-  const showCountdown = daysUntil > 0
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
@@ -64,14 +57,11 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
           </div>
         </div>
 
-        {/* Countdown Banner */}
-        {showCountdown && <CountdownBanner daysUntil={daysUntil} />}
-
         {/* KPI Cards */}
         <KpiCards stats={stats} />
 
-        {/* KI Marktanalyse */}
-        <MarketBriefing />
+        {/* Kaufberater — Quartalsende-Timing + Chat */}
+        <QuarterEndAdvisor />
 
         {/* Price History Chart */}
         <PriceHistoryChart chartData={vinPriceHistory.chartData} vinMeta={vinPriceHistory.vinMeta} recentChanges={recentChanges} listings={listings} onSelectVin={setSelectedVin} />
@@ -94,8 +84,6 @@ export default function DashboardContent({ listings, stats, vinPriceHistory, rec
         />
       )}
 
-      {/* KI-Kaufberater Chat */}
-      <AiAdvisor />
     </div>
   )
 }
