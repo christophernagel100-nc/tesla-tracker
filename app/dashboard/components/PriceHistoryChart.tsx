@@ -29,15 +29,22 @@ interface VehicleCard {
   totalDelta: number
   totalDeltaPct: number
   odometerKm: number | null
+  isSold: boolean
   sparkData: { price: number }[]
 }
 
 export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = [], listings = [], onSelectVin }: Props) {
-  // Odometer-Map aus Listings
+  // Odometer + Sold-Map aus Listings
   const odometerMap = useMemo(() => {
     const map = new Map<string, number | null>()
     for (const l of listings) map.set(l.vin, l.odometer_km)
     return map
+  }, [listings])
+
+  const soldSet = useMemo(() => {
+    const set = new Set<string>()
+    for (const l of listings) { if (l.is_sold) set.add(l.vin) }
+    return set
   }, [listings])
 
   // Pro Fahrzeug: Sparkline-Daten, aktueller Preis, Delta berechnen
@@ -63,12 +70,16 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
         totalDelta,
         totalDeltaPct,
         odometerKm: odometerMap.get(meta.vin) ?? null,
+        isSold: soldSet.has(meta.vin),
         sparkData: prices.map(p => ({ price: p })),
       }
     })
-    // Sortieren: größte Preissenkung zuerst
-    .sort((a, b) => a.totalDelta - b.totalDelta)
-  }, [chartData, vinMeta, odometerMap])
+    // Sortieren: Verkaufte ans Ende, dann größte Preissenkung zuerst
+    .sort((a, b) => {
+      if (a.isSold !== b.isSold) return a.isSold ? 1 : -1
+      return a.totalDelta - b.totalDelta
+    })
+  }, [chartData, vinMeta, odometerMap, soldSet])
 
   if (chartData.length === 0 || vinMeta.length === 0) {
     return (
@@ -117,19 +128,23 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
           return (
             <div
               key={vehicle.suffix}
-              className={`relative overflow-hidden rounded-xl transition-colors ${onSelectVin ? 'cursor-pointer hover:brightness-110 dark:hover:brightness-125' : ''}`}
+              className={`relative overflow-hidden rounded-xl transition-colors ${vehicle.isSold ? 'opacity-40' : ''} ${onSelectVin ? 'cursor-pointer hover:brightness-110 dark:hover:brightness-125' : ''}`}
               onClick={() => onSelectVin?.(vehicle.vin)}
               style={{
-                background: hasDrop
-                  ? 'rgba(16,185,129,0.04)'
-                  : hasRise
-                    ? 'rgba(239,68,68,0.03)'
-                    : 'var(--subtle)',
-                border: `1px solid ${hasDrop
-                  ? 'rgba(16,185,129,0.1)'
-                  : hasRise
-                    ? 'rgba(239,68,68,0.06)'
-                    : 'var(--border)'}`,
+                background: vehicle.isSold
+                  ? 'var(--subtle)'
+                  : hasDrop
+                    ? 'rgba(16,185,129,0.04)'
+                    : hasRise
+                      ? 'rgba(239,68,68,0.03)'
+                      : 'var(--subtle)',
+                border: `1px solid ${vehicle.isSold
+                  ? 'var(--border)'
+                  : hasDrop
+                    ? 'rgba(16,185,129,0.1)'
+                    : hasRise
+                      ? 'rgba(239,68,68,0.06)'
+                      : 'var(--border)'}`,
                 padding: '14px 16px 10px',
               }}
             >
@@ -167,9 +182,14 @@ export default function PriceHistoryChart({ chartData, vinMeta, recentChanges = 
 
               {/* Preis + Delta */}
               <div className="flex items-baseline justify-between mt-2">
-                <span className="text-lg font-semibold text-foreground tabular-nums tracking-tight">
+                <span className={`text-lg font-semibold tabular-nums tracking-tight ${vehicle.isSold ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                   {formatPrice(vehicle.currentPrice)}
                 </span>
+                {vehicle.isSold && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">
+                    Verkauft
+                  </span>
+                )}
                 {vehicle.totalDelta !== 0 && (
                   <span
                     className="text-xs font-medium tabular-nums"

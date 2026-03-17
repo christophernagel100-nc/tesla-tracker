@@ -43,12 +43,9 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [sourceFilter, setSourceFilter] = useState<ListingSource | 'all'>('all')
-  const [showSold, setShowSold] = useState(true)
-
-  const filteredListings = (sourceFilter === 'all'
+  const filteredListings = sourceFilter === 'all'
     ? listings
     : listings.filter(l => l.source === sourceFilter)
-  ).filter(l => showSold || !l.is_sold)
 
   const activeCount = filteredListings.filter(l => !l.is_sold).length
   const soldCount = filteredListings.filter(l => l.is_sold).length
@@ -96,19 +93,6 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
           Aktuelle Angebote <span className="text-subtle-foreground font-normal ml-1">({activeCount}{soldCount > 0 && ` + ${soldCount} verkauft`})</span>
         </h2>
         <div className="flex items-center gap-2">
-          {/* Sold Toggle */}
-          {listings.some(l => l.is_sold) && (
-            <button
-              onClick={() => setShowSold(s => !s)}
-              className={`px-2 py-1 rounded text-[11px] transition-colors ${
-                showSold
-                  ? 'bg-red-500/10 text-red-400 font-medium'
-                  : 'text-subtle-foreground hover:text-muted-foreground'
-              }`}
-            >
-              Verkaufte
-            </button>
-          )}
           {/* Source Filter */}
           {availableSources.length > 1 && (
             <div className="flex items-center gap-1">
