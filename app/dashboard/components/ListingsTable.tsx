@@ -31,18 +31,33 @@ function SourceBadge({ source }: { source: ListingSource }) {
   )
 }
 
+function SoldBadge() {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+      Verkauft
+    </span>
+  )
+}
+
 export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('price')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [sourceFilter, setSourceFilter] = useState<ListingSource | 'all'>('all')
+  const [showSold, setShowSold] = useState(true)
 
-  const filteredListings = sourceFilter === 'all'
+  const filteredListings = (sourceFilter === 'all'
     ? listings
     : listings.filter(l => l.source === sourceFilter)
+  ).filter(l => showSold || !l.is_sold)
+
+  const activeCount = filteredListings.filter(l => !l.is_sold).length
+  const soldCount = filteredListings.filter(l => l.is_sold).length
 
   const scoredListings = filteredListings.map(l => ({ ...l, scoreResult: calcBuyScore(l, avgPrice) }))
 
   const sorted = [...scoredListings].sort((a, b) => {
+    // Verkaufte immer ans Ende
+    if (a.is_sold !== b.is_sold) return a.is_sold ? 1 : -1
     let av: number, bv: number
     if (sortKey === 'score') { av = a.scoreResult.score; bv = b.scoreResult.score }
     else { av = (a[sortKey] as number) || 0; bv = (b[sortKey] as number) || 0 }
@@ -78,9 +93,22 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
     <div className="card p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4 sm:mb-5 gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">
-          Aktuelle Angebote <span className="text-subtle-foreground font-normal ml-1">({filteredListings.length})</span>
+          Aktuelle Angebote <span className="text-subtle-foreground font-normal ml-1">({activeCount}{soldCount > 0 && ` + ${soldCount} verkauft`})</span>
         </h2>
         <div className="flex items-center gap-2">
+          {/* Sold Toggle */}
+          {listings.some(l => l.is_sold) && (
+            <button
+              onClick={() => setShowSold(s => !s)}
+              className={`px-2 py-1 rounded text-[11px] transition-colors ${
+                showSold
+                  ? 'bg-red-500/10 text-red-400 font-medium'
+                  : 'text-subtle-foreground hover:text-muted-foreground'
+              }`}
+            >
+              Verkaufte
+            </button>
+          )}
           {/* Source Filter */}
           {availableSources.length > 1 && (
             <div className="flex items-center gap-1">
@@ -137,16 +165,18 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
         {sorted.map((listing) => (
           <div
             key={`${listing.vin}-${listing.source}`}
-            className="p-3 rounded-xl bg-subtle border border-border active:bg-muted transition-colors cursor-pointer"
+            className={`p-3 rounded-xl bg-subtle border border-border active:bg-muted transition-colors cursor-pointer ${listing.is_sold ? 'opacity-40' : ''}`}
             onClick={() => onSelectVin(listing.vin)}
           >
             <div className="flex items-start justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <BuyScore result={listing.scoreResult} compact />
+                {listing.is_sold ? <SoldBadge /> : <BuyScore result={listing.scoreResult} compact />}
                 <SourceBadge source={listing.source} />
                 <span className="text-sm text-muted-foreground">{listing.location || '–'}</span>
               </div>
-              <span className="text-sm font-medium text-foreground tabular-nums">{formatPrice(listing.price)}</span>
+              <span className={`text-sm font-medium tabular-nums ${listing.is_sold ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                {formatPrice(listing.price)}
+              </span>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="tabular-nums">{formatRegistration(listing.registration_month, listing.registration_year)}</span>
@@ -183,17 +213,23 @@ export default function ListingsTable({ listings, avgPrice, onSelectVin }: Props
             {sorted.map((listing) => (
               <tr
                 key={`${listing.vin}-${listing.source}`}
-                className="hover:bg-subtle cursor-pointer transition-colors"
+                className={`hover:bg-subtle cursor-pointer transition-colors ${listing.is_sold ? 'opacity-40' : ''}`}
                 onClick={() => onSelectVin(listing.vin)}
               >
-                <td className="py-3 pr-4"><BuyScore result={listing.scoreResult} /></td>
+                <td className="py-3 pr-4">
+                  {listing.is_sold ? <SoldBadge /> : <BuyScore result={listing.scoreResult} />}
+                </td>
                 <td className="py-3 pr-4"><SourceBadge source={listing.source} /></td>
                 <td className="py-3 pr-4 text-sm text-muted-foreground whitespace-nowrap">{listing.location || '–'}</td>
                 <td className="py-3 pr-4 text-sm text-muted-foreground tabular-nums">
                   {formatRegistration(listing.registration_month, listing.registration_year)}
                 </td>
                 <td className="py-3 pr-4 text-sm text-muted-foreground tabular-nums">{formatKm(listing.odometer_km)}</td>
-                <td className="py-3 pr-4 text-sm font-medium text-foreground tabular-nums">{formatPrice(listing.price)}</td>
+                <td className="py-3 pr-4 text-sm font-medium tabular-nums">
+                  <span className={listing.is_sold ? 'line-through text-muted-foreground' : 'text-foreground'}>
+                    {formatPrice(listing.price)}
+                  </span>
+                </td>
                 <td className="py-3 pr-4 text-xs">
                   {listing.has_towbar ? <span className="text-emerald-400">✓</span> : <span className="text-subtle-foreground">–</span>}
                 </td>

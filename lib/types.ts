@@ -41,6 +41,7 @@ export interface TeslaCurrentListing extends TeslaSnapshot {
   first_seen: string
   last_seen: string
   is_sold: boolean
+  sold_at: string | null
   days_on_market: number
   sources: ListingSource[]
 }

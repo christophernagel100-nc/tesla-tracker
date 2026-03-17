@@ -21,7 +21,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient()
 
   const [listingsRes, priceChangesRes] = await Promise.all([
-    supabase.from('tesla_current_listings').select('price, source'),
+    supabase.from('tesla_current_listings').select('price, source').eq('is_sold', false),
     supabase
       .from('tesla_price_changes')
       .select('delta')
@@ -182,6 +182,7 @@ export async function getCrossSourceMatches(): Promise<CrossSourceMatch[]> {
   const { data, error } = await supabase
     .from('tesla_current_listings')
     .select('vin, price, source')
+    .eq('is_sold', false)
     .order('vin')
 
   if (error || !data) return []

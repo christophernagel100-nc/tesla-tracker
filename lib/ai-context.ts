@@ -23,7 +23,7 @@ async function getListings(): Promise<TeslaCurrentListing[]> {
 async function getStats(): Promise<DashboardStats> {
   const supabase = getClient()
   const [listingsRes, dropsRes] = await Promise.all([
-    supabase.from('tesla_current_listings').select('price'),
+    supabase.from('tesla_current_listings').select('price').eq('is_sold', false),
     supabase
       .from('tesla_price_changes')
       .select('delta')
@@ -36,6 +36,7 @@ async function getStats(): Promise<DashboardStats> {
     avgPrice: prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0,
     lowestPrice: prices.length ? Math.min(...prices) : 0,
     priceDrops24h: (dropsRes.data || []).length,
+    bySource: [],
   }
 }
 
